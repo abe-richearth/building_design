@@ -126,6 +126,8 @@ def viewer_data(elements, layers, rooms, levels, label_at, summary):
 PLAN_CSS = """
 .plan { font-family: var(--plan-font, 'IBM Plex Sans', Helvetica, Arial, sans-serif); }
 .cut { fill: var(--plan-cut, #2a2b2e); stroke: none; }
+.insul { fill: var(--plan-insul, #d9d3c7); stroke: none; }
+.stud { fill: var(--plan-stud, #b98d4f); stroke: var(--plan-cut, #2a2b2e); stroke-width: .015; }
 .cut-int { fill: var(--plan-cut-int, #55575c); stroke: none; }
 .glass { fill: var(--plan-glass, #8fc0dd); stroke: var(--plan-cut, #2a2b2e); stroke-width: .03; }
 .below { fill: none; stroke: var(--plan-line, #5d6066); stroke-width: .06; }
@@ -224,7 +226,9 @@ def plan_svg(elements, rooms, levels, label_at, level, length, depth, inline=Fal
         if e.layer == "Doors" and crosses:
             continue  # drawn as swings below
         if e.layer.startswith("Walls") and crosses:
-            cut.append(rect(lo, hi, "cut" if e.layer == "Walls-Exterior" else "cut-int"))
+            cls = {"Walls-Ext-Cellulose": "insul", "Walls-Ext-Framing": "stud",
+                   "Walls-Interior": "cut-int"}.get(e.layer, "cut")
+            cut.append(rect(lo, hi, cls))
             continue
         if e.layer in ("Studio-Equipment", "ADU-Furniture") and lo[2] >= f - 0.1 and lo[2] < c:
             below.append(rect(lo, hi, "equip", e.name))

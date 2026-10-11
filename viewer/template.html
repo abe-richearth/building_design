@@ -16,7 +16,7 @@
   --display: "Archivo", "Arial Narrow", Arial, sans-serif;
   --body: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
-  --plan-cut: #23262b; --plan-cut-int: #59606b; --plan-line: #6a7280; --plan-text: #1b2330;
+  --plan-cut: #23262b; --plan-cut-int: #59606b; --plan-insul: #ddd6c8; --plan-stud: #b98d4f; --plan-line: #6a7280; --plan-text: #1b2330;
   --plan-muted: #5f6877; --plan-glass: #9cc4df; --plan-equip: rgba(31,78,121,.10);
   --plan-equip-line: #1f4e79; --plan-zone: rgba(181,102,29,.12); --plan-zone-line: #b5661d;
   --plan-font: var(--body);
@@ -24,14 +24,14 @@
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --paper: #12161c; --sheet: #191e26; --ink: #e4e8ee; --muted: #9aa3b1; --rule: #2c333e;
   --prussian: #7fb0de; --prussian-soft: #1f2d3d; --sienna: #e09a5a; --scene-bg: #1a1f27;
-  --plan-cut: #e4e8ee; --plan-cut-int: #a9b2bf; --plan-line: #8e98a6; --plan-text: #e4e8ee;
+  --plan-cut: #e4e8ee; --plan-cut-int: #a9b2bf; --plan-insul: #4a463f; --plan-stud: #a07a45; --plan-line: #8e98a6; --plan-text: #e4e8ee;
   --plan-muted: #9aa3b1; --plan-glass: #3f6f93; --plan-equip: rgba(127,176,222,.12);
   --plan-equip-line: #7fb0de; --plan-zone: rgba(224,154,90,.13); --plan-zone-line: #e09a5a;
   color-scheme: dark; } }
 :root[data-theme="dark"] {
   --paper: #12161c; --sheet: #191e26; --ink: #e4e8ee; --muted: #9aa3b1; --rule: #2c333e;
   --prussian: #7fb0de; --prussian-soft: #1f2d3d; --sienna: #e09a5a; --scene-bg: #1a1f27;
-  --plan-cut: #e4e8ee; --plan-cut-int: #a9b2bf; --plan-line: #8e98a6; --plan-text: #e4e8ee;
+  --plan-cut: #e4e8ee; --plan-cut-int: #a9b2bf; --plan-insul: #4a463f; --plan-stud: #a07a45; --plan-line: #8e98a6; --plan-text: #e4e8ee;
   --plan-muted: #9aa3b1; --plan-glass: #3f6f93; --plan-equip: rgba(127,176,222,.12);
   --plan-equip-line: #7fb0de; --plan-zone: rgba(224,154,90,.13); --plan-zone-line: #e09a5a;
   color-scheme: dark; }
@@ -157,7 +157,9 @@ td.n { font-family: var(--mono); text-align: right; white-space: nowrap; }
         <div class="sheet">__PLAN_UPPER__</div>
       </div>
       <div class="legend">
-        <span><svg width="14" height="14"><rect width="14" height="14" fill="var(--plan-cut)"/></svg>Exterior wall (cut)</span>
+        <span><svg width="14" height="14"><rect width="14" height="14" fill="var(--plan-cut)"/></svg>Sheathing / drywall</span>
+        <span><svg width="14" height="14"><rect width="14" height="14" fill="var(--plan-insul)"/></svg>Cellulose (8")</span>
+        <span><svg width="14" height="14"><rect width="14" height="14" fill="var(--plan-stud)"/></svg>2x4 studs, two rows</span>
         <span><svg width="14" height="14"><rect width="14" height="14" fill="var(--plan-cut-int)"/></svg>Partition (cut)</span>
         <span><svg width="14" height="14"><rect width="14" height="14" fill="var(--plan-glass)"/></svg>Glazing</span>
         <span><svg width="14" height="14"><rect x="1" y="1" width="12" height="12" fill="var(--plan-equip)" stroke="var(--plan-equip-line)"/></svg>Equipment &amp; furniture</span>
@@ -218,7 +220,7 @@ const cutPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 31);
 const groups = {}, mats = {};
 const edgeMat = new THREE.LineBasicMaterial({ color: 0x2a2f38, transparent: true, opacity: 0.55, clippingPlanes: [cutPlane] });
 const pickables = [];
-const NO_EDGES = new Set(['Site', 'Walls-Exterior', 'Walls-Interior', 'Floors', 'Slab']);
+const NO_EDGES = new Set(['Site', 'Walls-Ext-Sheathing', 'Walls-Ext-Cellulose', 'Walls-Ext-Drywall', 'Walls-Interior', 'Floors', 'Slab']);
 
 for (const [name, L] of Object.entries(DATA.layers)) {
   const g = new THREE.Group(); g.name = name; groups[name] = g; scene.add(g);
@@ -319,7 +321,7 @@ const layersEl = document.getElementById('layers');
 for (const [name, L] of Object.entries(DATA.layers)) {
   const id = 'ly-' + name.replace(/\W+/g, '-').toLowerCase();
   const lab = document.createElement('label');
-  lab.innerHTML = `<input type="checkbox" id="${id}" checked><span class="sw" style="background:${L.color}"></span>${name.replace('-', ' ')}`;
+  lab.innerHTML = `<input type="checkbox" id="${id}" checked><span class="sw" style="background:${L.color}"></span>${name.replace(/^Walls-Ext-/, 'Ext wall: ').replaceAll('-', ' ')}`;
   lab.querySelector('input').addEventListener('change', e => { groups[name].visible = e.target.checked; });
   layersEl.appendChild(lab);
 }

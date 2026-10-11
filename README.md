@@ -8,6 +8,11 @@ ground floor (slab on grade for the press, an 8' loading door, tall north window
 separate wet/etch room with a fume hood). A one-bedroom ADU sits above, reached by its
 own enclosed stair and entry.
 
+**Exterior walls:** 8" double-stud walls (two rows of 2x4s at 24" o.c. with a 1" gap)
+filled with dense-pack cellulose, about R-30 nominal. With 1/2" sheathing and 1/2"
+drywall they are 9" thick overall. The 36' × 24' footprint is measured to the outside of
+the sheathing.
+
 ![Ground floor plan](output/plan-ground.svg)
 ![Upper floor plan](output/plan-upper.svg)
 
@@ -35,6 +40,7 @@ python build.py
 | Path | What it is |
 | --- | --- |
 | `model/design.py` | The design: dimensions, walls, openings, rooms, equipment. |
+| `model/walls.py` | The exterior wall assembly (layers, stud rows, framing). |
 | `model/geometry.py` | Primitives (boxes, extruded profiles, walls with openings). |
 | `model/export.py` | Writers for `.3dm`, `.glb`, `.obj`, `.stl`, SVG plans, viewer data. |
 | `viewer/template.html` | The browser viewer (three.js). |
@@ -46,7 +52,8 @@ building's southwest corner at the top of the ground-floor slab.
 ## Rhino notes for later
 
 * Every object is a closed extrusion, named (for example "Etching press bed",
-  "Living south window") and placed on a layer: Walls-Exterior, Walls-Interior, Floors,
+  "Living south window") and placed on a layer: Walls-Ext-Sheathing, Walls-Ext-Cellulose,
+  Walls-Ext-Framing (every stud, plate, header and rim), Walls-Ext-Drywall, Walls-Interior, Floors,
   Roof, Glazing, Doors, Stair, Studio-Equipment, Studio-Zones, ADU-Furniture, Slab, Site.
 * Walls are split into pieces around openings. In Rhino, `BooleanUnion` per wall merges
   them if you want single solids.

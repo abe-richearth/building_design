@@ -92,11 +92,14 @@ class Opening:
 
 
 def wall(name, layer, axis, along0, along1, across0, across1, z0, z1,
-         openings=(), level=None):
+         openings=(), level=None, infill=True, band=None):
     """A straight wall. axis='x' runs east-west, axis='y' runs north-south.
 
-    Returns the wall pieces plus glazing / door leaves for each opening.
+    Returns the wall pieces plus, if `infill`, glazing / door leaves for each
+    opening. `band` is the full (across0, across1) of a multi-layer wall, so
+    infill can be centred in the whole assembly rather than in one layer.
     """
+    band = band or (across0, across1)
     def blk(nm, lyr, a0, a1, c0, c1, zz0, zz1, **meta):
         if a1 - a0 < 1e-6 or zz1 - zz0 < 1e-6:
             return None
@@ -107,16 +110,18 @@ def wall(name, layer, axis, along0, along1, across0, across1, z0, z1,
     out = []
     ops = sorted(openings, key=lambda o: o.a)
     cursor = along0
-    mid = (across0 + across1) / 2
+    mid = (band[0] + band[1]) / 2
     for i, o in enumerate(ops):
         out.append(blk(f"{name} pier {i}", layer, cursor, o.a, across0, across1, z0, z1))
         out.append(blk(f"{name} below {o.name or i}", layer, o.a, o.b, across0, across1, z0, o.sill))
         out.append(blk(f"{name} above {o.name or i}", layer, o.a, o.b, across0, across1, o.head, z1))
         t = 0.06
-        if o.kind == "window":
+        if not infill:
+            pass
+        elif o.kind == "window":
             out.append(blk(o.name or f"{name} window {i}", "Glazing",
                            o.a, o.b, mid - t / 2, mid + t / 2, o.sill, o.head,
-                           window=True, axis=axis, wall=(across0, across1)))
+                           window=True, axis=axis, wall=band))
         elif o.kind in ("glass-door", "slider"):
             out.append(blk(o.name or f"{name} door {i}", "Glazing",
                            o.a, o.b, mid - t / 2, mid + t / 2, o.sill, o.head,

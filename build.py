@@ -12,6 +12,7 @@ ROOT = Path(__file__).parent
 sys.path.insert(0, str(ROOT / "model"))
 
 import design  # noqa: E402
+import walls  # noqa: E402
 import export  # noqa: E402
 
 OUT = ROOT / "output"
@@ -22,6 +23,11 @@ def brief_html(s, rooms):
         f"<tr><td>{'Ground' if lvl == 'ground' else 'Upper'}</td><td>{name}</td>"
         f"<td class='n'>{design.room_area(r, sub):,.0f} sf</td></tr>"
         for lvl, name, r, sub in rooms)
+    wall_rows = "".join(
+        f"<tr><td>{layer}</td><td class='n'>{'' if t is None else f'{t:g}&quot;'}</td>"
+        f"<td class='n'>{'' if r is None else f'R-{r:g}'}</td></tr>"
+        for layer, t, r in walls.ASSEMBLY_TABLE)
+    r_total = sum(r for _, _, r in walls.ASSEMBLY_TABLE if r)
     return f"""
 <div>
   <h2>The idea</h2>
@@ -58,8 +64,24 @@ def brief_html(s, rooms):
     <li>Ferric chloride or similar etching in a ducted fume hood. No solvent-heavy screen washout booth yet.</li>
     <li>One-bedroom ADU, about 750 sf, with a vaulted ceiling under the roof.</li>
     <li>Flat site, with the street to the south. Wood frame on a slab-on-grade.</li>
+    <li>Footprint held at 36' &times; 24' to the outside of the sheathing, so the 9&quot; walls
+    take their thickness from the rooms.</li>
     <li>Dimensions are in feet; the model origin is the building's southwest corner.</li>
   </ul>
+</div>
+<div class="wide">
+  <h2>Exterior wall: 8&quot; double-stud, dense-pack cellulose</h2>
+  <p>Two rows of 2x4 studs at 24&quot; on centre with a 1&quot; gap between them make an 8&quot;
+  cavity filled with dense-pack cellulose. The gap means no stud runs from inside to outside,
+  so the only thermal bridges are the plates, headers and rim. The outer row carries the floor and roof;
+  the inner row is non-bearing and holds wiring and plumbing without breaching the air barrier.
+  Overall thickness is 9&quot; plus siding.</p>
+  <table><tr><th>Layer, outside to inside</th><th style="text-align:right">Thickness</th>
+  <th style="text-align:right">Approx. R</th></tr>{wall_rows}
+  <tr><td><b>Centre-of-wall, nominal</b></td><td class="n">9&quot;</td><td class="n"><b>about R-{r_total:.0f}</b></td></tr></table>
+  <p>Whole-wall R after framing losses is closer to R-26. In cold or mixed climates, use a
+  vapour-open sheathing or a ventilated rainscreen so the sheathing can dry; I can tune this
+  once we know the climate zone.</p>
 </div>
 <div class="wide q">
   <h2>Questions for you</h2>

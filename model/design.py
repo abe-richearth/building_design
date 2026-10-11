@@ -7,6 +7,7 @@ plans) is regenerated.
 Units: feet. x = east, y = north, z = up. Origin = SW corner of the
 building, top of ground-floor slab.
 """
+import walls
 from geometry import Opening as O, box, cylinder_y, prism, wall
 
 # ---------------------------------------------------------------------------
@@ -14,7 +15,7 @@ from geometry import Opening as O, box, cylinder_y, prism, wall
 # ---------------------------------------------------------------------------
 LENGTH = 36.0            # east-west, exterior face to exterior face
 DEPTH = 24.0             # north-south
-EXT_WALL = 0.5           # 6" exterior wall
+EXT_WALL = walls.THICKNESS   # 9": 1/2" sheathing + 8" double-stud/cellulose + 1/2" drywall
 INT_WALL = 0.375         # 4.5" interior partition
 
 FLOOR2 = 12.0            # studio floor-to-floor (11' clear for the press, ducts)
@@ -37,7 +38,10 @@ LAYERS = {
     # name: (rgb, opacity)
     "Site":              ((0.62, 0.68, 0.56), 1.0),
     "Slab":              ((0.62, 0.62, 0.60), 1.0),
-    "Walls-Exterior":    ((0.93, 0.92, 0.89), 1.0),
+    "Walls-Ext-Sheathing": ((0.93, 0.92, 0.89), 1.0),
+    "Walls-Ext-Cellulose": ((0.72, 0.70, 0.66), 1.0),
+    "Walls-Ext-Framing":   ((0.86, 0.72, 0.50), 1.0),
+    "Walls-Ext-Drywall":   ((0.98, 0.98, 0.97), 1.0),
     "Walls-Interior":    ((0.97, 0.97, 0.95), 1.0),
     "Floors":            ((0.78, 0.66, 0.50), 1.0),
     "Roof":              ((0.33, 0.35, 0.38), 1.0),
@@ -49,21 +53,25 @@ LAYERS = {
     "ADU-Furniture":     ((0.62, 0.70, 0.62), 1.0),
 }
 
+# interior faces of the exterior walls, and the studio side of the stair partition
+_W, _N, _E = EXT_WALL, DEPTH - EXT_WALL, LENGTH - EXT_WALL
+_SP = STAIR_X0 - INT_WALL
+
 # ---------------------------------------------------------------------------
 # Rooms (for labels and area take-offs). rect = (x0, y0, x1, y1)
 # ---------------------------------------------------------------------------
 ROOMS = [
     # level, name, rect, subtract-rects
-    ("ground", "Print Studio", (0.5, 0.5, 31.5, 23.5),
-     [(14.5, 0.5, 20.375, 7.375), (14.5, 16.0, 24.375, 23.5)]),
-    ("ground", "Wet / Etch Room", (14.875, 16.375, 24.0, 23.5), []),
-    ("ground", "WC", (14.875, 0.5, 20.0, 7.0), []),
-    ("ground", "Entry + Stair", (31.875, 0.5, 35.5, 23.5), []),
-    ("upper", "Living / Kitchen", (0.5, 0.5, 31.5, 23.5),
-     [(14.5, 0.5, 21.0, 8.375), (21.0, 0.5, 31.5, 11.875)]),
-    ("upper", "Bedroom", (21.375, 0.5, 31.5, 11.5), []),
-    ("upper", "Bath", (14.875, 0.5, 21.0, 8.0), []),
-    ("upper", "Landing", (31.875, STAIR_Y1, 35.5, 23.5), []),
+    ("ground", "Print Studio", (_W, _W, _SP, _N),
+     [(14.5, _W, 20.375, 7.375), (14.5, 16.0, 24.375, _N)]),
+    ("ground", "Wet / Etch Room", (14.875, 16.375, 24.0, _N), []),
+    ("ground", "WC", (14.875, _W, 20.0, 7.0), []),
+    ("ground", "Entry + Stair", (STAIR_X0, _W, _E, _N), []),
+    ("upper", "Living / Kitchen", (_W, _W, _SP, _N),
+     [(14.5, _W, 21.0, 8.375), (21.0, _W, _SP, 11.875)]),
+    ("upper", "Bedroom", (21.375, _W, _SP, 11.5), []),
+    ("upper", "Bath", (14.875, _W, 21.0, 8.0), []),
+    ("upper", "Landing", (STAIR_X0, STAIR_Y1, _E, _N), []),
 ]
 
 LABEL_AT = {  # where to place a room label if not the rect centre
@@ -78,7 +86,7 @@ LABEL_VERTICAL = {"Entry + Stair"}  # narrow rooms get a rotated label
 ZONES = [  # translucent floor patches that show working clearances
     ("Press clearance", (2.5, 8.5, 14.5, 15.5)),
     ("Clean zone", (21.0, 7.5, 31.0, 17.5)),
-    ("Dirty zone", (5.0, 18.0, 14.25, 23.5)),
+    ("Dirty zone", (5.0, 18.0, 14.25, _N)),
 ]
 
 
@@ -98,7 +106,7 @@ def build():
     south = [
         O(4.5, 12.5, 0, 8, "slider", name="Studio loading door (8' slider)"),
         O(22, 28, 3, 9, name="Studio south window"),
-        O(32.25, 35.25, 0, 7, "door", "+b", name="ADU / stair entry door"),
+        O(32.0, 35.0, 0, 7, "door", "+b", name="ADU / stair entry door"),
         O(3, 10, u + 1.5, u + 8, name="Living south window"),
         O(16, 19, u + 5, u + 7, name="Bath window"),
         O(24, 29, u + 2.5, u + 7.5, name="Bedroom south window"),
@@ -121,15 +129,17 @@ def build():
         O(9, 13, 5, 9, name="Stair hall window"),
         O(9, 13, u + 2, u + 7, name="Stair hall upper window"),
     ]
-    E += wall("South wall", "Walls-Exterior", "x", 0, L, 0, W, 0, PLATE, south)
-    E += wall("North wall", "Walls-Exterior", "x", 0, L, D - W, D, 0, PLATE, north)
-    E += wall("West wall", "Walls-Exterior", "y", W, D - W, 0, W, 0, PLATE, west)
-    E += wall("East wall", "Walls-Exterior", "y", W, D - W, L - W, L, 0, PLATE, east)
-
-    # gable ends
-    for nm, x0 in (("West gable", 0), ("East gable", L - W)):
-        E.append(prism(nm, "Walls-Exterior",
-                       [(x0, 0, PLATE), (x0, D, PLATE), (x0, D / 2, RIDGE)], (W, 0, 0)))
+    # double-stud walls: sheathing, cellulose and drywall layers, plus both stud rows
+    sides = [
+        walls.Side("South wall", "x", 0, +1, L, south),
+        walls.Side("North wall", "x", D, -1, L, north),
+        walls.Side("West wall", "y", 0, +1, D, west),
+        walls.Side("East wall", "y", L, -1, D, east),
+    ]
+    storeys = [(0, FLOOR2 - FLOOR_THICK), (FLOOR2, PLATE)]
+    E += walls.build_walls(sides, 0, PLATE, storeys,
+                           gables=[("West gable", 0, +1), ("East gable", L, -1)],
+                           plate_z=PLATE, ridge_z=RIDGE, depth=D)
 
     # --- upper floor (stair opening cut out) ---------------------------------
     z0, z1 = FLOOR2 - FLOOR_THICK, FLOOR2
@@ -200,19 +210,19 @@ def build():
         E.append(box(nm, s, px - 1.0, y, 0, px + 1.0, y + 0.4, 4.6, level=g))
     E.append(cylinder_y("Press top roller", s, px, 3.75, 0.55, py0, py1))
     E.append(cylinder_y("Press star wheel", s, px, 3.75, 1.6, py1 + 0.4, py1 + 0.55, sides=6))
-    E.append(box("Inking table (glass slab top)", s, 6.0, 20.75, 0, 12.0, 23.4, 3.0, level=g))
-    E.append(box("Glass inking slab", "Glazing", 6.5, 21.0, 3.0, 11.5, 23.15, 3.08, level=g))
-    E.append(box("Paper prep / blotter table", s, 0.6, 1.5, 0, 3.6, 7.5, 3.0, level=g))
-    E.append(box("Paper soaking tray", s, 0.6, 8.0, 0, 3.6, 11.0, 2.6, level=g))
-    E.append(box("Deep sink (6' stainless)", s, 15.25, 21.25, 0, 21.25, 23.4, 3.0, level=g))
-    E.append(box("Fume hood base", s, 21.75, 20.75, 0, 23.9, 23.4, 3.0, level=g))
-    E.append(box("Fume hood (ducted)", s, 21.75, 20.75, 3.0, 23.9, 23.4, 7.0, level=g))
-    E.append(box("Fume hood exhaust duct", s, 22.5, 22.25, 7.0, 23.25, 23.0, 11.0))
-    E.append(box("Drying rack", s, 25.0, 20.0, 0, 27.5, 23.4, 5.0, level=g))
-    E.append(box("Flat files 1", s, 27.75, 8.0, 0, 31.4, 12.5, 3.5, level=g))
-    E.append(box("Flat files 2", s, 27.75, 12.5, 0, 31.4, 17.0, 3.5, level=g))
+    E.append(box("Inking table (glass slab top)", s, 6.0, 20.5, 0, 12.0, _N - 0.1, 3.0, level=g))
+    E.append(box("Glass inking slab", "Glazing", 6.5, 20.75, 3.0, 11.5, _N - 0.35, 3.08, level=g))
+    E.append(box("Paper prep / blotter table", s, _W + 0.1, 1.5, 0, _W + 3.1, 7.5, 3.0, level=g))
+    E.append(box("Paper soaking tray", s, _W + 0.1, 8.0, 0, _W + 3.1, 11.0, 2.6, level=g))
+    E.append(box("Deep sink (6' stainless)", s, 15.25, 21.0, 0, 21.25, _N - 0.1, 3.0, level=g))
+    E.append(box("Fume hood base", s, 21.75, 20.5, 0, 23.9, _N - 0.1, 3.0, level=g))
+    E.append(box("Fume hood (ducted)", s, 21.75, 20.5, 3.0, 23.9, _N - 0.1, 7.0, level=g))
+    E.append(box("Fume hood exhaust duct", s, 22.5, 22.0, 7.0, 23.25, 22.75, 11.0))
+    E.append(box("Drying rack", s, 25.0, 19.75, 0, 27.5, _N - 0.1, 5.0, level=g))
+    E.append(box("Flat files 1", s, _SP - 3.75, 8.0, 0, _SP - 0.1, 12.5, 3.5, level=g))
+    E.append(box("Flat files 2", s, _SP - 3.75, 12.5, 0, _SP - 0.1, 17.0, 3.5, level=g))
     E.append(box("Clean work table", s, 21.0, 8.5, 0, 27.0, 12.5, 3.0, level=g))
-    E.append(box("WC toilet", s, 18.0, 0.6, 0, 19.5, 2.9, 1.4, level=g))
+    E.append(box("WC toilet", s, 18.0, _W + 0.1, 0, 19.5, _W + 2.4, 1.4, level=g))
     E.append(box("WC hand sink", s, 15.0, 3.5, 2.4, 16.5, 5.0, 2.9, level=g))
     for nm, rect in ZONES:
         x0, y0, x1, y1 = rect
@@ -220,13 +230,13 @@ def build():
 
     # --- ADU furniture ------------------------------------------------------------------
     f = "ADU-Furniture"
-    E.append(box("Kitchen counter", f, 17.0, 21.4, u, 27.75, D - W, u + 3, level=up))
-    E.append(box("Refrigerator", f, 28.0, 21.0, u, 30.75, D - W, u + 6.5, level=up))
+    E.append(box("Kitchen counter", f, 17.0, _N - 2.1, u, 27.75, _N, u + 3, level=up))
+    E.append(box("Refrigerator", f, 28.0, _N - 2.5, u, 30.75, _N, u + 6.5, level=up))
     E.append(box("Kitchen island", f, 20.0, 16.5, u, 26.0, 19.0, u + 3, level=up))
     E.append(box("Dining table", f, 9.5, 16.5, u, 14.5, 19.5, u + 2.5, level=up))
     E.append(box("Sofa", f, 2.0, 1.0, u, 9.5, 4.0, u + 2.75, level=up))
     E.append(box("Coffee table", f, 4.0, 5.5, u, 8.0, 7.5, u + 1.5, level=up))
-    E.append(box("Queen bed", f, 24.75, 2.5, u, 31.4, 7.5, u + 2, level=up))
+    E.append(box("Queen bed", f, _SP - 6.75, 2.5, u, _SP - 0.1, 7.5, u + 2, level=up))
     E.append(box("Closet", f, 26.5, 9.5, u, STAIR_X0 - iw, 11.5, u + 8, level=up))
     E.append(box("Bathtub / shower", f, 14.9, W, u, 19.9, 3.0, u + 1.75, level=up))
     E.append(box("Toilet", f, 19.4, 4.2, u, 20.95, 6.5, u + 1.4, level=up))
