@@ -1,0 +1,431 @@
+<title>Print Studio + ADU</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a drafting-table app. Model fills the sheet, a narrow control strip on the right, tabs flip to plans and the brief. */
+:root {
+  --paper: #f6f7f8;          /* cool drawing paper */
+  --sheet: #ffffff;
+  --ink: #1b2330;            /* body text, near-black with blue bias */
+  --muted: #5f6877;
+  --rule: #d9dde3;
+  --prussian: #1f4e79;       /* Prussian blue, the classic intaglio ink */
+  --prussian-soft: #e3ebf3;
+  --sienna: #b5661d;         /* burnt sienna for zones */
+  --scene-bg: #e9ecef;
+  --display: "Archivo", "Arial Narrow", Arial, sans-serif;
+  --body: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --plan-cut: #23262b; --plan-cut-int: #59606b; --plan-line: #6a7280; --plan-text: #1b2330;
+  --plan-muted: #5f6877; --plan-glass: #9cc4df; --plan-equip: rgba(31,78,121,.10);
+  --plan-equip-line: #1f4e79; --plan-zone: rgba(181,102,29,.12); --plan-zone-line: #b5661d;
+  --plan-font: var(--body);
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #12161c; --sheet: #191e26; --ink: #e4e8ee; --muted: #9aa3b1; --rule: #2c333e;
+  --prussian: #7fb0de; --prussian-soft: #1f2d3d; --sienna: #e09a5a; --scene-bg: #1a1f27;
+  --plan-cut: #e4e8ee; --plan-cut-int: #a9b2bf; --plan-line: #8e98a6; --plan-text: #e4e8ee;
+  --plan-muted: #9aa3b1; --plan-glass: #3f6f93; --plan-equip: rgba(127,176,222,.12);
+  --plan-equip-line: #7fb0de; --plan-zone: rgba(224,154,90,.13); --plan-zone-line: #e09a5a;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --paper: #12161c; --sheet: #191e26; --ink: #e4e8ee; --muted: #9aa3b1; --rule: #2c333e;
+  --prussian: #7fb0de; --prussian-soft: #1f2d3d; --sienna: #e09a5a; --scene-bg: #1a1f27;
+  --plan-cut: #e4e8ee; --plan-cut-int: #a9b2bf; --plan-line: #8e98a6; --plan-text: #e4e8ee;
+  --plan-muted: #9aa3b1; --plan-glass: #3f6f93; --plan-equip: rgba(127,176,222,.12);
+  --plan-equip-line: #7fb0de; --plan-zone: rgba(224,154,90,.13); --plan-zone-line: #e09a5a;
+  color-scheme: dark; }
+html, body { height: 100%; }
+body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 14px; line-height: 1.5; }
+* { box-sizing: border-box; }
+.app { display: flex; flex-direction: column; min-height: 100%; }
+header { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 24px; padding: 14px 16px 0; border-bottom: 1px solid var(--rule); background: var(--sheet); }
+.brand { display: flex; flex-direction: column; gap: 0; padding-bottom: 10px; }
+.brand h1 { font-family: var(--display); font-stretch: 78%; font-weight: 800; font-size: 22px; letter-spacing: .01em; margin: 0; line-height: 1.1; text-wrap: balance; }
+.brand span { font-family: var(--mono); font-size: 11.5px; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
+nav { display: flex; gap: 2px; margin-left: auto; }
+nav button { font: 500 13px var(--body); color: var(--muted); background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 12px 10px; cursor: pointer; }
+nav button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--prussian); }
+nav button:focus-visible, .btn:focus-visible, input:focus-visible { outline: 2px solid var(--prussian); outline-offset: 2px; }
+main { flex: 1; display: flex; min-height: 0; }
+section[role="tabpanel"] { flex: 1; min-width: 0; }
+/* 3D */
+#tab-model { display: flex; min-height: 560px; }
+.stage { position: relative; flex: 1; min-width: 0; background: var(--scene-bg); }
+.stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.labels div { position: absolute; transform: translate(-50%, -50%); font: 600 11px var(--body); color: var(--ink); background: color-mix(in srgb, var(--sheet) 82%, transparent); padding: 1px 6px; border-radius: 2px; white-space: nowrap; }
+.labels div small { font: 400 10px var(--mono); color: var(--muted); margin-left: 4px; }
+.pick { position: absolute; left: 12px; bottom: 12px; max-width: calc(100% - 24px); font: 12px var(--mono); background: var(--sheet); color: var(--ink); border: 1px solid var(--rule); padding: 6px 10px; }
+.hint { position: absolute; right: 12px; bottom: 12px; font: 11px var(--mono); color: var(--muted); }
+aside { width: 252px; flex: none; border-left: 1px solid var(--rule); background: var(--sheet); padding: 16px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; }
+aside h2 { font: 600 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+.btns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.btn { font: 500 12.5px var(--body); color: var(--ink); background: var(--paper); border: 1px solid var(--rule); padding: 7px 8px; cursor: pointer; text-align: left; }
+.btn:hover { border-color: var(--prussian); }
+.btn.on { background: var(--prussian-soft); border-color: var(--prussian); color: var(--prussian); }
+.cut { display: grid; gap: 6px; }
+.cut output { font: 12px var(--mono); color: var(--prussian); }
+input[type="range"] { width: 100%; accent-color: var(--prussian); }
+.layers { display: grid; gap: 4px; }
+.layers label { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+.layers input { accent-color: var(--prussian); margin: 0; }
+.sw { width: 12px; height: 12px; border: 1px solid var(--rule); flex: none; }
+/* Plans */
+#tab-plans { padding: 20px 16px 32px; }
+.plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 20px; max-width: 1400px; margin: 0 auto; }
+.sheet { background: var(--sheet); border: 1px solid var(--rule); padding: 8px; overflow-x: auto; min-width: 0; }
+.sheet svg { display: block; width: 100%; height: auto; min-width: 480px; }
+.legend { max-width: 1400px; margin: 14px auto 0; display: flex; flex-wrap: wrap; gap: 6px 22px; font-size: 12.5px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+/* Brief */
+#tab-brief { padding: 24px 16px 40px; }
+.brief { max-width: 980px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px 40px; }
+.brief h2 { font-family: var(--display); font-stretch: 80%; font-weight: 700; font-size: 19px; margin: 0 0 10px; text-wrap: balance; }
+.brief p, .brief li { max-width: 62ch; }
+.brief ol, .brief ul { padding-left: 1.2em; margin: 0; display: grid; gap: 8px; }
+.brief .wide { grid-column: 1 / -1; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+td, th { text-align: left; padding: 6px 8px 6px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font: 600 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+td.n { font-family: var(--mono); text-align: right; white-space: nowrap; }
+.q b { color: var(--prussian); }
+@media (max-width: 760px) {
+  #tab-model { flex-direction: column; }
+  .stage { height: 62vh; min-height: 360px; flex: none; }
+  aside { width: auto; border-left: 0; border-top: 1px solid var(--rule); }
+  .brief { grid-template-columns: minmax(0, 1fr); }
+  nav { margin-left: 0; }
+  .hint { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="app">
+  <header>
+    <div class="brand">
+      <h1>Print Studio + ADU</h1>
+      <span>Concept v1 · 36' × 24' footprint · two storeys</span>
+    </div>
+    <nav role="tablist" aria-label="Views">
+      <button role="tab" id="t-model" aria-controls="tab-model" aria-selected="true">3D model</button>
+      <button role="tab" id="t-plans" aria-controls="tab-plans" aria-selected="false">Floor plans</button>
+      <button role="tab" id="t-brief" aria-controls="tab-brief" aria-selected="false">Brief &amp; questions</button>
+    </nav>
+  </header>
+  <main>
+    <section role="tabpanel" id="tab-model" aria-labelledby="t-model">
+      <div class="stage" id="stage">
+        <div class="labels" id="labels"></div>
+        <div class="pick" id="pick">Click any element to see what it is.</div>
+        <div class="hint">drag to orbit · right-drag to pan · scroll to zoom</div>
+      </div>
+      <aside>
+        <div>
+          <h2>Show</h2>
+          <div class="btns" id="presets">
+            <button class="btn on" data-cut="31">Whole building</button>
+            <button class="btn" data-cut="19.5">ADU floor</button>
+            <button class="btn" data-cut="8.5">Studio floor</button>
+            <button class="btn" data-cut="31" data-lbl="1">Room labels</button>
+          </div>
+        </div>
+        <div class="cut">
+          <h2><label for="cutr">Section cut height</label></h2>
+          <input type="range" id="cutr" min="1" max="31" step="0.25" value="31">
+          <output id="cutv" for="cutr">above roof</output>
+        </div>
+        <div>
+          <h2>Camera</h2>
+          <div class="btns" id="cams">
+            <button class="btn" data-cam="sw">From southwest</button>
+            <button class="btn" data-cam="ne">From northeast</button>
+            <button class="btn" data-cam="top">Top down</button>
+            <button class="btn" data-cam="in">Inside studio</button>
+          </div>
+        </div>
+        <div>
+          <h2>Layers</h2>
+          <div class="layers" id="layers"></div>
+        </div>
+      </aside>
+    </section>
+
+    <section role="tabpanel" id="tab-plans" aria-labelledby="t-plans" hidden>
+      <div class="plans">
+        <div class="sheet"><style>
+.plan { font-family: var(--plan-font, 'IBM Plex Sans', Helvetica, Arial, sans-serif); }
+.cut { fill: var(--plan-cut, #2a2b2e); stroke: none; }
+.cut-int { fill: var(--plan-cut-int, #55575c); stroke: none; }
+.glass { fill: var(--plan-glass, #8fc0dd); stroke: var(--plan-cut, #2a2b2e); stroke-width: .03; }
+.below { fill: none; stroke: var(--plan-line, #5d6066); stroke-width: .06; }
+.equip { fill: var(--plan-equip, rgba(51,82,115,.12)); stroke: var(--plan-equip-line, #335273); stroke-width: .07; }
+.zone { fill: var(--plan-zone, rgba(232,140,51,.14)); stroke: var(--plan-zone-line, #d9822b); stroke-width: .06; stroke-dasharray: .4 .25; }
+.mullion { stroke: var(--plan-cut, #2a2b2e); stroke-width: .05; }
+.swing { fill: none; stroke: var(--plan-line, #5d6066); stroke-width: .045; }
+.leaf { stroke: var(--plan-cut, #2a2b2e); stroke-width: .1; }
+.room { fill: var(--plan-text, #1d1e20); font-size: .95px; font-weight: 600; text-anchor: middle; }
+.area { fill: var(--plan-muted, #6b6e74); font-size: .7px; text-anchor: middle; }
+.zlabel { fill: var(--plan-zone-line, #b5661d); font-size: .6px; font-style: italic; }
+.elabel { fill: var(--plan-equip-line, #335273); font-size: .5px; text-anchor: middle; }
+.dim { stroke: var(--plan-muted, #6b6e74); stroke-width: .04; fill: none; }
+.dimt { fill: var(--plan-muted, #6b6e74); font-size: .7px; text-anchor: middle; }
+.title { fill: var(--plan-text, #1d1e20); font-size: 1.3px; font-weight: 600; }
+.sub { fill: var(--plan-muted, #6b6e74); font-size: .7px; }
+.north { fill: var(--plan-text, #1d1e20); }
+</style><svg xmlns="http://www.w3.org/2000/svg" class="plan" viewBox="0 0 44.00 34.50" role="img" aria-label="Ground floor: Print Studio"><rect class="below" x="35.875" y="24.087" width="3.625" height="0.913"></rect><rect class="below" x="35.875" y="23.253" width="3.625" height="0.913"></rect><rect class="below" x="35.875" y="22.420" width="3.625" height="0.913"></rect><rect class="below" x="35.875" y="21.587" width="3.625" height="0.913"></rect><rect class="below" x="35.875" y="20.753" width="3.625" height="0.913"></rect><rect class="below" x="35.875" y="19.920" width="3.625" height="0.913"></rect><rect class="below" x="35.875" y="19.087" width="3.625" height="0.913"></rect><rect class="equip" x="9.500" y="16.000" width="7.000" height="2.000"><title>Etching press stand</title></rect><rect class="equip" x="9.500" y="15.750" width="7.000" height="2.500"><title>Etching press bed (30"x60", 7' travel)</title></rect><rect class="equip" x="12.000" y="18.250" width="2.000" height="0.400"><title>Press side frame S</title></rect><rect class="equip" x="12.000" y="15.350" width="2.000" height="0.400"><title>Press side frame N</title></rect><rect class="equip" x="12.450" y="15.750" width="1.100" height="2.500"><title>Press top roller</title></rect><rect class="equip" x="11.400" y="15.200" width="3.200" height="0.150"><title>Press star wheel</title></rect><rect class="equip" x="10.000" y="5.600" width="6.000" height="2.650"><title>Inking table (glass slab top)</title></rect><rect class="equip" x="4.600" y="21.500" width="3.000" height="6.000"><title>Paper prep / blotter table</title></rect><rect class="equip" x="4.600" y="18.000" width="3.000" height="3.000"><title>Paper soaking tray</title></rect><rect class="equip" x="19.250" y="5.600" width="6.000" height="2.150"><title>Deep sink (6' stainless)</title></rect><rect class="equip" x="25.750" y="5.600" width="2.150" height="2.650"><title>Fume hood base</title></rect><rect class="equip" x="25.750" y="5.600" width="2.150" height="2.650"><title>Fume hood (ducted)</title></rect><rect class="equip" x="29.000" y="5.600" width="2.500" height="3.400"><title>Drying rack</title></rect><rect class="equip" x="31.750" y="16.500" width="3.650" height="4.500"><title>Flat files 1</title></rect><rect class="equip" x="31.750" y="12.000" width="3.650" height="4.500"><title>Flat files 2</title></rect><rect class="equip" x="25.000" y="16.500" width="6.000" height="4.000"><title>Clean work table</title></rect><rect class="equip" x="22.000" y="26.100" width="1.500" height="2.300"><title>WC toilet</title></rect><rect class="equip" x="19.000" y="24.000" width="1.500" height="1.500"><title>WC hand sink</title></rect><rect class="zone" x="6.500" y="13.500" width="12.000" height="7.000"><title>Press clearance</title></rect><rect class="zone" x="25.000" y="11.500" width="10.000" height="10.000"><title>Clean zone</title></rect><rect class="zone" x="9.000" y="5.500" width="9.250" height="5.500"><title>Dirty zone</title></rect><rect class="cut" x="4.000" y="28.500" width="3.000" height="0.500"></rect><rect class="cut" x="7.000" y="28.500" width="7.000" height="0.500"></rect><rect class="cut" x="16.500" y="28.500" width="3.500" height="0.500"></rect><rect class="cut" x="20.000" y="28.500" width="3.000" height="0.500"></rect><rect class="cut" x="23.000" y="28.500" width="3.000" height="0.500"></rect><rect class="cut" x="28.000" y="28.500" width="5.000" height="0.500"></rect><rect class="cut" x="33.000" y="28.500" width="3.250" height="0.500"></rect><rect class="cut" x="39.250" y="28.500" width="0.750" height="0.500"></rect><rect class="cut" x="4.000" y="5.000" width="1.500" height="0.500"></rect><rect class="cut" x="6.000" y="5.000" width="5.000" height="0.500"></rect><rect class="cut" x="14.000" y="5.000" width="4.000" height="0.500"></rect><rect class="cut" x="18.000" y="5.000" width="3.000" height="0.500"></rect><rect class="cut" x="25.000" y="5.000" width="6.000" height="0.500"></rect><rect class="cut" x="34.000" y="5.000" width="6.000" height="0.500"></rect><rect class="cut" x="4.000" y="25.000" width="0.500" height="3.500"></rect><rect class="cut" x="4.000" y="11.000" width="0.500" height="12.000"></rect><rect class="cut" x="4.000" y="5.500" width="0.500" height="8.500"></rect><rect class="cut" x="39.500" y="20.000" width="0.500" height="8.500"></rect><rect class="cut" x="39.500" y="16.000" width="0.500" height="4.000"></rect><rect class="cut" x="39.500" y="16.000" width="0.500" height="4.000"></rect><rect class="cut" x="39.500" y="5.500" width="0.500" height="10.500"></rect><rect class="cut-int" x="35.500" y="28.000" width="0.375" height="0.500"></rect><rect class="cut-int" x="35.500" y="5.500" width="0.375" height="19.750"></rect><rect class="cut-int" x="18.500" y="21.625" width="0.375" height="6.875"></rect><rect class="cut-int" x="24.000" y="21.625" width="0.375" height="6.875"></rect><rect class="cut-int" x="18.500" y="21.625" width="1.500" height="0.375"></rect><rect class="cut-int" x="22.500" y="21.625" width="1.875" height="0.375"></rect><rect class="cut-int" x="18.500" y="12.625" width="1.000" height="0.375"></rect><rect class="cut-int" x="22.500" y="12.625" width="5.875" height="0.375"></rect><rect class="cut-int" x="18.500" y="5.500" width="0.375" height="7.125"></rect><rect class="cut-int" x="28.000" y="5.500" width="0.375" height="7.125"></rect><rect class="glass" x="8.500" y="28.720" width="8.000" height="0.060"><title>Studio loading door (8' slider)</title></rect><rect class="glass" x="26.000" y="28.500" width="6.000" height="0.500"><title>Studio south window</title></rect><line class="mullion" x1="26.00" y1="28.75" x2="32.00" y2="28.75"/><rect class="glass" x="5.500" y="5.000" width="4.000" height="0.500"><title>North light window 1</title></rect><line class="mullion" x1="5.50" y1="5.25" x2="9.50" y2="5.25"/><rect class="glass" x="11.000" y="5.000" width="4.000" height="0.500"><title>North light window 2</title></rect><line class="mullion" x1="11.00" y1="5.25" x2="15.00" y2="5.25"/><rect class="glass" x="30.000" y="5.000" width="4.000" height="0.500"><title>North light window 3</title></rect><line class="mullion" x1="30.00" y1="5.25" x2="34.00" y2="5.25"/><rect class="glass" x="4.000" y="21.000" width="0.500" height="4.000"><title>Studio west window 1</title></rect><line class="mullion" x1="4.25" y1="25.00" x2="4.25" y2="21.00"/><rect class="glass" x="4.000" y="14.000" width="0.500" height="4.000"><title>Studio west window 2</title></rect><line class="mullion" x1="4.25" y1="18.00" x2="4.25" y2="14.00"/><line class="leaf" x1="8.50" y1="28.90" x2="12.60" y2="28.90"/><line class="leaf" x1="12.40" y1="28.60" x2="16.50" y2="28.60"/><line class="leaf" x1="39.25" y1="28.75" x2="39.25" y2="25.75"/><path class="swing" d="M39.25,25.75 A3.00,3.00 0 0 0 36.25,28.75"/><line class="leaf" x1="35.69" y1="25.25" x2="32.94" y2="25.25"/><path class="swing" d="M32.94,25.25 A2.75,2.75 0 0 0 35.69,28.00"/><line class="leaf" x1="20.00" y1="21.81" x2="20.00" y2="24.31"/><path class="swing" d="M20.00,24.31 A2.50,2.50 0 0 0 22.50,21.81"/><line class="leaf" x1="19.50" y1="12.81" x2="19.50" y2="9.81"/><path class="swing" d="M19.50,9.81 A3.00,3.00 0 0 1 22.50,12.81"/><text class="elabel" x="13.00" y="17.18">Etching press</text><text class="elabel" x="13.00" y="7.11">Inking table</text><text class="elabel" x="6.10" y="24.68">Paper prep</text><text class="elabel" x="6.10" y="19.68">Soak tray</text><text class="elabel" x="22.25" y="6.86">Deep sink</text><text class="elabel" x="26.82" y="7.11">Fume hood</text><text class="elabel" x="30.25" y="7.48">Drying rack</text><text class="elabel" x="33.58" y="18.93">Flat files</text><text class="elabel" x="33.58" y="14.43">Flat files</text><text class="elabel" x="28.00" y="18.68">Clean table</text><text class="zlabel" x="6.75" y="14.25">Press clearance</text><text class="zlabel" x="25.25" y="12.25">Clean zone</text><text class="zlabel" x="9.25" y="6.25">Dirty zone</text><g><text class="room" x="10.50" y="25.00">Print Studio</text><text class="area" x="10.50" y="25.90">599 sf</text></g><g><text class="room" x="23.44" y="9.06">Wet / Etch Room</text><text class="area" x="23.44" y="9.96">65 sf</text></g><g><text class="room" x="21.44" y="25.25">WC</text><text class="area" x="21.44" y="26.15">33 sf</text></g><g transform="rotate(-90 37.70 15.50)"><text class="room" x="37.70" y="15.50">Entry + Stair</text><text class="area" x="37.70" y="16.40">83 sf</text></g><path class="dim" d="M4.0,31.2 H40.0 M4.0,30.8 V31.599999999999998 M40.0,30.8 V31.599999999999998"/><text class="dimt" x="22.0" y="30.9">36'-0"</text><path class="dim" d="M42.0,29.0 V5.0 M41.6,29.0 H42.4 M41.6,5.0 H42.4"/><text class="dimt" transform="translate(41.65,17.0) rotate(-90)">24'-0"</text><rect x="4.0" y="33.2" width="2.5" height=".35" class="cut"/><rect x="6.5" y="33.2" width="2.5" height=".35" class="below"/><rect x="9.0" y="33.2" width="2.5" height=".35" class="cut"/><rect x="11.5" y="33.2" width="2.5" height=".35" class="below"/><text class="sub" x="14.6" y="33.6">10 ft</text><path class="north" d="M42.0,1.0 L42.55,2.6 L42.0,2.25 L41.45,2.6 Z"/><text class="sub" x="42.0" y="3.5" text-anchor="middle">N</text><text class="title" x="4.0" y="2.4">Ground floor: Print Studio</text><text class="sub" x="4.0" y="3.5">Plan cut at 4 ft above floor. Concept v1, not for construction.</text></svg></div>
+        <div class="sheet"><svg xmlns="http://www.w3.org/2000/svg" class="plan" viewBox="0 0 44.00 34.50" role="img" aria-label="Upper floor: ADU"><rect class="below" x="35.875" y="24.087" width="3.625" height="0.913"></rect><rect class="below" x="35.875" y="23.253" width="3.625" height="0.913"></rect><rect class="below" x="35.875" y="22.420" width="3.625" height="0.913"></rect><rect class="below" x="35.875" y="21.587" width="3.625" height="0.913"></rect><rect class="below" x="35.875" y="20.753" width="3.625" height="0.913"></rect><rect class="below" x="35.875" y="19.920" width="3.625" height="0.913"></rect><rect class="below" x="35.875" y="19.087" width="3.625" height="0.913"></rect><rect class="below" x="35.875" y="18.253" width="3.625" height="0.913"></rect><rect class="below" x="35.875" y="17.420" width="3.625" height="0.913"></rect><rect class="below" x="35.875" y="16.587" width="3.625" height="0.913"></rect><rect class="below" x="35.875" y="15.753" width="3.625" height="0.913"></rect><rect class="below" x="35.875" y="14.920" width="3.625" height="0.913"></rect><rect class="below" x="35.875" y="14.087" width="3.625" height="0.913"></rect><rect class="below" x="35.875" y="13.253" width="3.625" height="0.913"></rect><rect class="below" x="35.875" y="12.420" width="3.625" height="0.913"></rect><rect class="below" x="35.875" y="11.587" width="3.625" height="0.913"></rect><rect class="below" x="35.875" y="10.753" width="3.625" height="0.913"></rect><rect class="below" x="35.875" y="9.920" width="3.625" height="0.913"></rect><rect class="below" x="35.875" y="9.087" width="3.625" height="0.913"></rect><rect class="equip" x="21.000" y="5.500" width="10.750" height="2.100"><title>Kitchen counter</title></rect><rect class="equip" x="32.000" y="5.500" width="2.750" height="2.500"><title>Refrigerator</title></rect><rect class="equip" x="24.000" y="10.000" width="6.000" height="2.500"><title>Kitchen island</title></rect><rect class="equip" x="13.500" y="9.500" width="5.000" height="3.000"><title>Dining table</title></rect><rect class="equip" x="6.000" y="25.000" width="7.500" height="3.000"><title>Sofa</title></rect><rect class="equip" x="8.000" y="21.500" width="4.000" height="2.000"><title>Coffee table</title></rect><rect class="equip" x="28.750" y="21.500" width="6.650" height="5.000"><title>Queen bed</title></rect><rect class="equip" x="30.500" y="17.500" width="5.000" height="2.000"><title>Closet</title></rect><rect class="equip" x="18.900" y="26.000" width="5.000" height="2.500"><title>Bathtub / shower</title></rect><rect class="equip" x="23.400" y="22.500" width="1.550" height="2.300"><title>Toilet</title></rect><rect class="equip" x="18.900" y="21.500" width="1.800" height="3.500"><title>Vanity</title></rect><rect class="equip" x="33.000" y="14.500" width="2.500" height="2.500"><title>Stacked washer/dryer</title></rect><rect class="cut" x="4.000" y="28.500" width="3.000" height="0.500"></rect><rect class="cut" x="8.500" y="28.500" width="8.000" height="0.500"></rect><rect class="cut" x="16.500" y="28.500" width="3.500" height="0.500"></rect><rect class="cut" x="20.000" y="28.500" width="3.000" height="0.500"></rect><rect class="cut" x="23.000" y="28.500" width="3.000" height="0.500"></rect><rect class="cut" x="26.000" y="28.500" width="6.000" height="0.500"></rect><rect class="cut" x="33.000" y="28.500" width="3.250" height="0.500"></rect><rect class="cut" x="36.250" y="28.500" width="3.000" height="0.500"></rect><rect class="cut" x="39.250" y="28.500" width="0.750" height="0.500"></rect><rect class="cut" x="4.000" y="5.000" width="1.500" height="0.500"></rect><rect class="cut" x="5.500" y="5.000" width="4.000" height="0.500"></rect><rect class="cut" x="11.000" y="5.000" width="4.000" height="0.500"></rect><rect class="cut" x="18.000" y="5.000" width="3.000" height="0.500"></rect><rect class="cut" x="21.000" y="5.000" width="4.000" height="0.500"></rect><rect class="cut" x="30.000" y="5.000" width="4.000" height="0.500"></rect><rect class="cut" x="34.000" y="5.000" width="6.000" height="0.500"></rect><rect class="cut" x="4.000" y="25.000" width="0.500" height="3.500"></rect><rect class="cut" x="4.000" y="21.000" width="0.500" height="4.000"></rect><rect class="cut" x="4.000" y="14.000" width="0.500" height="4.000"></rect><rect class="cut" x="4.000" y="5.500" width="0.500" height="8.500"></rect><rect class="cut" x="39.500" y="20.000" width="0.500" height="8.500"></rect><rect class="cut" x="39.500" y="16.000" width="0.500" height="4.000"></rect><rect class="cut" x="39.500" y="5.500" width="0.500" height="10.500"></rect><rect class="cut-int" x="35.500" y="8.750" width="0.375" height="19.750"></rect><rect class="cut-int" x="35.500" y="5.500" width="0.375" height="0.500"></rect><rect class="cut-int" x="25.000" y="17.125" width="0.375" height="11.375"></rect><rect class="cut-int" x="25.000" y="17.125" width="1.000" height="0.375"></rect><rect class="cut-int" x="28.670" y="17.125" width="6.830" height="0.375"></rect><rect class="cut-int" x="18.500" y="20.625" width="0.375" height="7.875"></rect><rect class="cut-int" x="18.500" y="20.625" width="3.000" height="0.375"></rect><rect class="cut-int" x="24.000" y="20.625" width="1.000" height="0.375"></rect><rect class="glass" x="7.000" y="28.500" width="7.000" height="0.500"><title>Living south window</title></rect><line class="mullion" x1="7.00" y1="28.75" x2="14.00" y2="28.75"/><rect class="glass" x="28.000" y="28.500" width="5.000" height="0.500"><title>Bedroom south window</title></rect><line class="mullion" x1="28.00" y1="28.75" x2="33.00" y2="28.75"/><rect class="glass" x="6.000" y="5.000" width="5.000" height="0.500"><title>Living north window</title></rect><line class="mullion" x1="6.00" y1="5.25" x2="11.00" y2="5.25"/><rect class="glass" x="14.000" y="5.000" width="4.000" height="0.500"><title>Dining north window</title></rect><line class="mullion" x1="14.00" y1="5.25" x2="18.00" y2="5.25"/><rect class="glass" x="25.000" y="5.000" width="6.000" height="0.500"><title>Kitchen window</title></rect><line class="mullion" x1="25.00" y1="5.25" x2="31.00" y2="5.25"/><rect class="glass" x="4.000" y="11.000" width="0.500" height="12.000"><title>Living west window wall</title></rect><line class="mullion" x1="4.25" y1="23.00" x2="4.25" y2="11.00"/><rect class="glass" x="39.500" y="16.000" width="0.500" height="4.000"><title>Stair hall upper window</title></rect><line class="mullion" x1="39.75" y1="20.00" x2="39.75" y2="16.00"/><line class="leaf" x1="35.69" y1="8.75" x2="32.94" y2="8.75"/><path class="swing" d="M32.94,8.75 A2.75,2.75 0 0 1 35.69,6.00"/><line class="leaf" x1="26.00" y1="17.31" x2="26.00" y2="19.98"/><path class="swing" d="M26.00,19.98 A2.67,2.67 0 0 0 28.67,17.31"/><line class="leaf" x1="21.50" y1="20.81" x2="21.50" y2="23.31"/><path class="swing" d="M21.50,23.31 A2.50,2.50 0 0 0 24.00,20.81"/><text class="elabel" x="26.38" y="6.73">Kitchen</text><text class="elabel" x="33.38" y="6.93">Fridge</text><text class="elabel" x="27.00" y="11.43">Island</text><text class="elabel" x="16.00" y="11.18">Dining</text><text class="elabel" x="9.75" y="26.68">Sofa</text><text class="elabel" x="32.08" y="24.18">Queen bed</text><text class="elabel" x="33.00" y="18.68">Closet</text><text class="elabel" x="21.40" y="27.43">Tub / shower</text><text class="elabel" x="34.25" y="15.93">W/D</text><g><text class="room" x="10.50" y="18.00">Living / Kitchen</text><text class="area" x="10.50" y="18.90">542 sf</text></g><g><text class="room" x="29.60" y="20.35">Bedroom</text><text class="area" x="29.60" y="21.25">111 sf</text></g><g><text class="room" x="21.94" y="24.75">Bath</text><text class="area" x="21.94" y="25.65">46 sf</text></g><g><text class="room" x="37.69" y="7.33">Landing</text><text class="area" x="37.69" y="8.23">13 sf</text></g><path class="dim" d="M4.0,31.2 H40.0 M4.0,30.8 V31.599999999999998 M40.0,30.8 V31.599999999999998"/><text class="dimt" x="22.0" y="30.9">36'-0"</text><path class="dim" d="M42.0,29.0 V5.0 M41.6,29.0 H42.4 M41.6,5.0 H42.4"/><text class="dimt" transform="translate(41.65,17.0) rotate(-90)">24'-0"</text><rect x="4.0" y="33.2" width="2.5" height=".35" class="cut"/><rect x="6.5" y="33.2" width="2.5" height=".35" class="below"/><rect x="9.0" y="33.2" width="2.5" height=".35" class="cut"/><rect x="11.5" y="33.2" width="2.5" height=".35" class="below"/><text class="sub" x="14.6" y="33.6">10 ft</text><path class="north" d="M42.0,1.0 L42.55,2.6 L42.0,2.25 L41.45,2.6 Z"/><text class="sub" x="42.0" y="3.5" text-anchor="middle">N</text><text class="title" x="4.0" y="2.4">Upper floor: ADU</text><text class="sub" x="4.0" y="3.5">Plan cut at 4 ft above floor. Concept v1, not for construction.</text></svg></div>
+      </div>
+      <div class="legend">
+        <span><svg width="14" height="14"><rect width="14" height="14" fill="var(--plan-cut)"/></svg>Exterior wall (cut)</span>
+        <span><svg width="14" height="14"><rect width="14" height="14" fill="var(--plan-cut-int)"/></svg>Partition (cut)</span>
+        <span><svg width="14" height="14"><rect width="14" height="14" fill="var(--plan-glass)"/></svg>Glazing</span>
+        <span><svg width="14" height="14"><rect x="1" y="1" width="12" height="12" fill="var(--plan-equip)" stroke="var(--plan-equip-line)"/></svg>Equipment &amp; furniture</span>
+        <span><svg width="14" height="14"><rect x="1" y="1" width="12" height="12" fill="var(--plan-zone)" stroke="var(--plan-zone-line)" stroke-dasharray="3 2"/></svg>Working zone</span>
+      </div>
+    </section>
+
+    <section role="tabpanel" id="tab-brief" aria-labelledby="t-brief" hidden>
+      <div class="brief">
+<div>
+  <h2>The idea</h2>
+  <p>A two-storey carriage-house type. The print studio sits on the ground floor, where the
+  concrete slab can carry an etching press (often 1,000 to 2,500 lb) and where an 8-foot sliding
+  door lets you move the press, paper and flat files in and out. The ADU sits above with its own
+  enclosed stair and street-side entry, so the dwelling never shares air with solvents or acid.</p>
+  <p>The studio's long north wall gets tall windows for even, shadow-free light over the inking
+  table. Wet work (sink, fume hood, etching) is grouped in one room on the north side, directly
+  under the ADU kitchen, so plumbing and exhaust stack.</p>
+</div>
+<div>
+  <h2>Key numbers</h2>
+  <table>
+    <tr><td>Footprint</td><td class="n">36' x 24'</td></tr>
+    <tr><td>Gross area per floor</td><td class="n">864 sf</td></tr>
+    <tr><td>Studio (gross, excl. stair)</td><td class="n">756 sf</td></tr>
+    <tr><td>ADU (gross, excl. stair)</td><td class="n">756 sf</td></tr>
+    <tr><td>Shared stair / entry, each floor</td><td class="n">108 sf</td></tr>
+    <tr><td>Studio clear height</td><td class="n">11 ft</td></tr>
+    <tr><td>ADU wall height</td><td class="n">9 ft</td></tr>
+    <tr><td>Roof pitch / ridge height</td><td class="n">6:12 / 27.8 ft</td></tr>
+  </table>
+</div>
+<div>
+  <h2>Rooms (net)</h2>
+  <table><tr><th>Floor</th><th>Room</th><th style="text-align:right">Area</th></tr><tr><td>Ground</td><td>Print Studio</td><td class='n'>599 sf</td></tr><tr><td>Ground</td><td>Wet / Etch Room</td><td class='n'>65 sf</td></tr><tr><td>Ground</td><td>WC</td><td class='n'>33 sf</td></tr><tr><td>Ground</td><td>Entry + Stair</td><td class='n'>83 sf</td></tr><tr><td>Upper</td><td>Living / Kitchen</td><td class='n'>542 sf</td></tr><tr><td>Upper</td><td>Bedroom</td><td class='n'>111 sf</td></tr><tr><td>Upper</td><td>Bath</td><td class='n'>46 sf</td></tr><tr><td>Upper</td><td>Landing</td><td class='n'>13 sf</td></tr></table>
+</div>
+<div>
+  <h2>Assumptions in this draft</h2>
+  <ul>
+    <li>Intaglio and relief printing with one etching press (30&quot; × 60&quot; bed), so the
+    layout reserves a 12' × 7' clear zone for bed travel and walking around it.</li>
+    <li>Ferric chloride or similar etching in a ducted fume hood. No solvent-heavy screen washout booth yet.</li>
+    <li>One-bedroom ADU, about 750 sf, with a vaulted ceiling under the roof.</li>
+    <li>Flat site, with the street to the south. Wood frame on a slab-on-grade.</li>
+    <li>Dimensions are in feet; the model origin is the building's southwest corner.</li>
+  </ul>
+</div>
+<div class="wide q">
+  <h2>Questions for you</h2>
+  <ol>
+    <li><b>Printmaking processes.</b> Which do you do (etching, relief, lithography, screenprint,
+    letterpress)? Each changes the press count, the wet room, and ventilation.</li>
+    <li><b>Press.</b> Do you own a press already? Its make, bed size and weight set the clear zone
+    and the slab design.</li>
+    <li><b>Site.</b> Lot size, which way the street and north are, setbacks, and the local ADU rules
+    on size and height. Many cities cap a two-storey ADU around 25 ft; this draft's ridge is
+    28 ft.</li>
+    <li><b>Who lives upstairs?</b> You, a tenant, or family? That decides whether the stair
+    should also open into the studio (drawn now) or stay fully separate.</li>
+    <li><b>Arrangement.</b> Stacked like this, or side by side on one level (studio and ADU
+    sharing a wall), which is easier for accessibility and heavy equipment?</li>
+    <li><b>Teaching or open studio.</b> Will other people use the studio? That brings
+    accessibility, a larger WC and occupancy rules into play.</li>
+  </ol>
+</div>
+</div>
+    </section>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+const DATA = {"layers":{"Site":{"color":"#9ead8f","opacity":1.0},"Slab":{"color":"#9e9e99","opacity":1.0},"Walls-Exterior":{"color":"#edebe3","opacity":1.0},"Walls-Interior":{"color":"#f7f7f2","opacity":1.0},"Floors":{"color":"#c7a880","opacity":1.0},"Roof":{"color":"#545961","opacity":1.0},"Glazing":{"color":"#8cbfe0","opacity":0.35},"Doors":{"color":"#8c6647","opacity":1.0},"Stair":{"color":"#b28f66","opacity":1.0},"Studio-Equipment":{"color":"#335273","opacity":1.0},"Studio-Zones":{"color":"#f28c33","opacity":0.3},"ADU-Furniture":{"color":"#9eb29e","opacity":1.0}},"objects":[{"n":"Ground","l":"Site","v":[-22.0,-26.0,-0.55,58.0,-26.0,-0.55,58.0,42.0,-0.55,-22.0,42.0,-0.55,-22.0,-26.0,-0.5,58.0,-26.0,-0.5,58.0,42.0,-0.5,-22.0,42.0,-0.5],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Apron (concrete, at big door)","l":"Slab","v":[3.5,-10.0,-0.5,13.5,-10.0,-0.5,13.5,0.0,-0.5,3.5,0.0,-0.5,3.5,-10.0,-0.05,13.5,-10.0,-0.05,13.5,0.0,-0.05,3.5,0.0,-0.05],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Path to ADU entry","l":"Slab","v":[31.5,-10.0,-0.5,35.5,-10.0,-0.5,35.5,0.0,-0.5,31.5,0.0,-0.5,31.5,-10.0,-0.05,35.5,-10.0,-0.05,35.5,0.0,-0.05,31.5,0.0,-0.05],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Ground floor slab (6\" reinforced, for press load)","l":"Slab","v":[0.0,0.0,-0.5,36.0,0.0,-0.5,36.0,24.0,-0.5,0.0,24.0,-0.5,0.0,0.0,0.0,36.0,0.0,0.0,36.0,24.0,0.0,0.0,24.0,0.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"South wall pier 0","l":"Walls-Exterior","v":[0.0,0.0,0.0,3.0,0.0,0.0,3.0,0.5,0.0,0.0,0.5,0.0,0.0,0.0,21.0,3.0,0.0,21.0,3.0,0.5,21.0,0.0,0.5,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"South wall below Living south window","l":"Walls-Exterior","v":[3.0,0.0,0.0,10.0,0.0,0.0,10.0,0.5,0.0,3.0,0.5,0.0,3.0,0.0,13.5,10.0,0.0,13.5,10.0,0.5,13.5,3.0,0.5,13.5],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"South wall above Living south window","l":"Walls-Exterior","v":[3.0,0.0,20.0,10.0,0.0,20.0,10.0,0.5,20.0,3.0,0.5,20.0,3.0,0.0,21.0,10.0,0.0,21.0,10.0,0.5,21.0,3.0,0.5,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Living south window","l":"Glazing","v":[3.0,0.22,13.5,10.0,0.22,13.5,10.0,0.28,13.5,3.0,0.28,13.5,3.0,0.22,20.0,10.0,0.22,20.0,10.0,0.28,20.0,3.0,0.28,20.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"South wall above Studio loading door (8' slider)","l":"Walls-Exterior","v":[4.5,0.0,8.0,12.5,0.0,8.0,12.5,0.5,8.0,4.5,0.5,8.0,4.5,0.0,21.0,12.5,0.0,21.0,12.5,0.5,21.0,4.5,0.5,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Studio loading door (8' slider)","l":"Glazing","v":[4.5,0.22,0.0,12.5,0.22,0.0,12.5,0.28,0.0,4.5,0.28,0.0,4.5,0.22,8.0,12.5,0.22,8.0,12.5,0.28,8.0,4.5,0.28,8.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"South wall pier 2","l":"Walls-Exterior","v":[12.5,0.0,0.0,16.0,0.0,0.0,16.0,0.5,0.0,12.5,0.5,0.0,12.5,0.0,21.0,16.0,0.0,21.0,16.0,0.5,21.0,12.5,0.5,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"South wall below Bath window","l":"Walls-Exterior","v":[16.0,0.0,0.0,19.0,0.0,0.0,19.0,0.5,0.0,16.0,0.5,0.0,16.0,0.0,17.0,19.0,0.0,17.0,19.0,0.5,17.0,16.0,0.5,17.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"South wall above Bath window","l":"Walls-Exterior","v":[16.0,0.0,19.0,19.0,0.0,19.0,19.0,0.5,19.0,16.0,0.5,19.0,16.0,0.0,21.0,19.0,0.0,21.0,19.0,0.5,21.0,16.0,0.5,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Bath window","l":"Glazing","v":[16.0,0.22,17.0,19.0,0.22,17.0,19.0,0.28,17.0,16.0,0.28,17.0,16.0,0.22,19.0,19.0,0.22,19.0,19.0,0.28,19.0,16.0,0.28,19.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"South wall pier 3","l":"Walls-Exterior","v":[19.0,0.0,0.0,22.0,0.0,0.0,22.0,0.5,0.0,19.0,0.5,0.0,19.0,0.0,21.0,22.0,0.0,21.0,22.0,0.5,21.0,19.0,0.5,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"South wall below Studio south window","l":"Walls-Exterior","v":[22.0,0.0,0.0,28.0,0.0,0.0,28.0,0.5,0.0,22.0,0.5,0.0,22.0,0.0,3.0,28.0,0.0,3.0,28.0,0.5,3.0,22.0,0.5,3.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"South wall above Studio south window","l":"Walls-Exterior","v":[22.0,0.0,9.0,28.0,0.0,9.0,28.0,0.5,9.0,22.0,0.5,9.0,22.0,0.0,21.0,28.0,0.0,21.0,28.0,0.5,21.0,22.0,0.5,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Studio south window","l":"Glazing","v":[22.0,0.22,3.0,28.0,0.22,3.0,28.0,0.28,3.0,22.0,0.28,3.0,22.0,0.22,9.0,28.0,0.22,9.0,28.0,0.28,9.0,22.0,0.28,9.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"South wall below Bedroom south window","l":"Walls-Exterior","v":[24.0,0.0,0.0,29.0,0.0,0.0,29.0,0.5,0.0,24.0,0.5,0.0,24.0,0.0,14.5,29.0,0.0,14.5,29.0,0.5,14.5,24.0,0.5,14.5],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"South wall above Bedroom south window","l":"Walls-Exterior","v":[24.0,0.0,19.5,29.0,0.0,19.5,29.0,0.5,19.5,24.0,0.5,19.5,24.0,0.0,21.0,29.0,0.0,21.0,29.0,0.5,21.0,24.0,0.5,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Bedroom south window","l":"Glazing","v":[24.0,0.22,14.5,29.0,0.22,14.5,29.0,0.28,14.5,24.0,0.28,14.5,24.0,0.22,19.5,29.0,0.22,19.5,29.0,0.28,19.5,24.0,0.28,19.5],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"South wall pier 5","l":"Walls-Exterior","v":[29.0,0.0,0.0,32.25,0.0,0.0,32.25,0.5,0.0,29.0,0.5,0.0,29.0,0.0,21.0,32.25,0.0,21.0,32.25,0.5,21.0,29.0,0.5,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"South wall above ADU / stair entry door","l":"Walls-Exterior","v":[32.25,0.0,7.0,35.25,0.0,7.0,35.25,0.5,7.0,32.25,0.5,7.0,32.25,0.0,21.0,35.25,0.0,21.0,35.25,0.5,21.0,32.25,0.5,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"ADU / stair entry door","l":"Doors","v":[32.25,0.175,0.0,35.25,0.175,0.0,35.25,0.325,0.0,32.25,0.325,0.0,32.25,0.175,7.0,35.25,0.175,7.0,35.25,0.325,7.0,32.25,0.325,7.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"South wall pier end","l":"Walls-Exterior","v":[35.25,0.0,0.0,36.0,0.0,0.0,36.0,0.5,0.0,35.25,0.5,0.0,35.25,0.0,21.0,36.0,0.0,21.0,36.0,0.5,21.0,35.25,0.5,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"North wall pier 0","l":"Walls-Exterior","v":[0.0,23.5,0.0,1.5,23.5,0.0,1.5,24.0,0.0,0.0,24.0,0.0,0.0,23.5,21.0,1.5,23.5,21.0,1.5,24.0,21.0,0.0,24.0,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"North wall below North light window 1","l":"Walls-Exterior","v":[1.5,23.5,0.0,5.5,23.5,0.0,5.5,24.0,0.0,1.5,24.0,0.0,1.5,23.5,3.5,5.5,23.5,3.5,5.5,24.0,3.5,1.5,24.0,3.5],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"North wall above North light window 1","l":"Walls-Exterior","v":[1.5,23.5,10.5,5.5,23.5,10.5,5.5,24.0,10.5,1.5,24.0,10.5,1.5,23.5,21.0,5.5,23.5,21.0,5.5,24.0,21.0,1.5,24.0,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"North light window 1","l":"Glazing","v":[1.5,23.72,3.5,5.5,23.72,3.5,5.5,23.78,3.5,1.5,23.78,3.5,1.5,23.72,10.5,5.5,23.72,10.5,5.5,23.78,10.5,1.5,23.78,10.5],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"North wall below Living north window","l":"Walls-Exterior","v":[2.0,23.5,0.0,7.0,23.5,0.0,7.0,24.0,0.0,2.0,24.0,0.0,2.0,23.5,14.5,7.0,23.5,14.5,7.0,24.0,14.5,2.0,24.0,14.5],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"North wall above Living north window","l":"Walls-Exterior","v":[2.0,23.5,19.5,7.0,23.5,19.5,7.0,24.0,19.5,2.0,24.0,19.5,2.0,23.5,21.0,7.0,23.5,21.0,7.0,24.0,21.0,2.0,24.0,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Living north window","l":"Glazing","v":[2.0,23.72,14.5,7.0,23.72,14.5,7.0,23.78,14.5,2.0,23.78,14.5,2.0,23.72,19.5,7.0,23.72,19.5,7.0,23.78,19.5,2.0,23.78,19.5],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"North wall below North light window 2","l":"Walls-Exterior","v":[7.0,23.5,0.0,11.0,23.5,0.0,11.0,24.0,0.0,7.0,24.0,0.0,7.0,23.5,3.5,11.0,23.5,3.5,11.0,24.0,3.5,7.0,24.0,3.5],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"North wall above North light window 2","l":"Walls-Exterior","v":[7.0,23.5,10.5,11.0,23.5,10.5,11.0,24.0,10.5,7.0,24.0,10.5,7.0,23.5,21.0,11.0,23.5,21.0,11.0,24.0,21.0,7.0,24.0,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"North light window 2","l":"Glazing","v":[7.0,23.72,3.5,11.0,23.72,3.5,11.0,23.78,3.5,7.0,23.78,3.5,7.0,23.72,10.5,11.0,23.72,10.5,11.0,23.78,10.5,7.0,23.78,10.5],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"North wall below Dining north window","l":"Walls-Exterior","v":[10.0,23.5,0.0,14.0,23.5,0.0,14.0,24.0,0.0,10.0,24.0,0.0,10.0,23.5,14.5,14.0,23.5,14.5,14.0,24.0,14.5,10.0,24.0,14.5],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"North wall above Dining north window","l":"Walls-Exterior","v":[10.0,23.5,19.5,14.0,23.5,19.5,14.0,24.0,19.5,10.0,24.0,19.5,10.0,23.5,21.0,14.0,23.5,21.0,14.0,24.0,21.0,10.0,24.0,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Dining north window","l":"Glazing","v":[10.0,23.72,14.5,14.0,23.72,14.5,14.0,23.78,14.5,10.0,23.78,14.5,10.0,23.72,19.5,14.0,23.72,19.5,14.0,23.78,19.5,10.0,23.78,19.5],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"North wall pier 4","l":"Walls-Exterior","v":[14.0,23.5,0.0,17.0,23.5,0.0,17.0,24.0,0.0,14.0,24.0,0.0,14.0,23.5,21.0,17.0,23.5,21.0,17.0,24.0,21.0,14.0,24.0,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"North wall below Wet room window","l":"Walls-Exterior","v":[17.0,23.5,0.0,21.0,23.5,0.0,21.0,24.0,0.0,17.0,24.0,0.0,17.0,23.5,4.0,21.0,23.5,4.0,21.0,24.0,4.0,17.0,24.0,4.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"North wall above Wet room window","l":"Walls-Exterior","v":[17.0,23.5,7.5,21.0,23.5,7.5,21.0,24.0,7.5,17.0,24.0,7.5,17.0,23.5,21.0,21.0,23.5,21.0,21.0,24.0,21.0,17.0,24.0,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Wet room window","l":"Glazing","v":[17.0,23.72,4.0,21.0,23.72,4.0,21.0,23.78,4.0,17.0,23.78,4.0,17.0,23.72,7.5,21.0,23.72,7.5,21.0,23.78,7.5,17.0,23.78,7.5],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"North wall below Kitchen window","l":"Walls-Exterior","v":[21.0,23.5,0.0,27.0,23.5,0.0,27.0,24.0,0.0,21.0,24.0,0.0,21.0,23.5,15.5,27.0,23.5,15.5,27.0,24.0,15.5,21.0,24.0,15.5],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"North wall above Kitchen window","l":"Walls-Exterior","v":[21.0,23.5,19.0,27.0,23.5,19.0,27.0,24.0,19.0,21.0,24.0,19.0,21.0,23.5,21.0,27.0,23.5,21.0,27.0,24.0,21.0,21.0,24.0,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Kitchen window","l":"Glazing","v":[21.0,23.72,15.5,27.0,23.72,15.5,27.0,23.78,15.5,21.0,23.78,15.5,21.0,23.72,19.0,27.0,23.72,19.0,27.0,23.78,19.0,21.0,23.78,19.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"North wall below North light window 3","l":"Walls-Exterior","v":[26.0,23.5,0.0,30.0,23.5,0.0,30.0,24.0,0.0,26.0,24.0,0.0,26.0,23.5,3.5,30.0,23.5,3.5,30.0,24.0,3.5,26.0,24.0,3.5],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"North wall above North light window 3","l":"Walls-Exterior","v":[26.0,23.5,10.5,30.0,23.5,10.5,30.0,24.0,10.5,26.0,24.0,10.5,26.0,23.5,21.0,30.0,23.5,21.0,30.0,24.0,21.0,26.0,24.0,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"North light window 3","l":"Glazing","v":[26.0,23.72,3.5,30.0,23.72,3.5,30.0,23.78,3.5,26.0,23.78,3.5,26.0,23.72,10.5,30.0,23.72,10.5,30.0,23.78,10.5,26.0,23.78,10.5],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"North wall pier end","l":"Walls-Exterior","v":[30.0,23.5,0.0,36.0,23.5,0.0,36.0,24.0,0.0,30.0,24.0,0.0,30.0,23.5,21.0,36.0,23.5,21.0,36.0,24.0,21.0,30.0,24.0,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"West wall pier 0","l":"Walls-Exterior","v":[0.0,0.5,0.0,0.5,0.5,0.0,0.5,4.0,0.0,0.0,4.0,0.0,0.0,0.5,21.0,0.5,0.5,21.0,0.5,4.0,21.0,0.0,4.0,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"West wall below Studio west window 1","l":"Walls-Exterior","v":[0.0,4.0,0.0,0.5,4.0,0.0,0.5,8.0,0.0,0.0,8.0,0.0,0.0,4.0,3.0,0.5,4.0,3.0,0.5,8.0,3.0,0.0,8.0,3.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"West wall above Studio west window 1","l":"Walls-Exterior","v":[0.0,4.0,10.5,0.5,4.0,10.5,0.5,8.0,10.5,0.0,8.0,10.5,0.0,4.0,21.0,0.5,4.0,21.0,0.5,8.0,21.0,0.0,8.0,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Studio west window 1","l":"Glazing","v":[0.22,4.0,3.0,0.28,4.0,3.0,0.28,8.0,3.0,0.22,8.0,3.0,0.22,4.0,10.5,0.28,4.0,10.5,0.28,8.0,10.5,0.22,8.0,10.5],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"West wall below Living west window wall","l":"Walls-Exterior","v":[0.0,6.0,0.0,0.5,6.0,0.0,0.5,18.0,0.0,0.0,18.0,0.0,0.0,6.0,14.0,0.5,6.0,14.0,0.5,18.0,14.0,0.0,18.0,14.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"West wall above Living west window wall","l":"Walls-Exterior","v":[0.0,6.0,20.0,0.5,6.0,20.0,0.5,18.0,20.0,0.0,18.0,20.0,0.0,6.0,21.0,0.5,6.0,21.0,0.5,18.0,21.0,0.0,18.0,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Living west window wall","l":"Glazing","v":[0.22,6.0,14.0,0.28,6.0,14.0,0.28,18.0,14.0,0.22,18.0,14.0,0.22,6.0,20.0,0.28,6.0,20.0,0.28,18.0,20.0,0.22,18.0,20.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"West wall below Studio west window 2","l":"Walls-Exterior","v":[0.0,11.0,0.0,0.5,11.0,0.0,0.5,15.0,0.0,0.0,15.0,0.0,0.0,11.0,3.0,0.5,11.0,3.0,0.5,15.0,3.0,0.0,15.0,3.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"West wall above Studio west window 2","l":"Walls-Exterior","v":[0.0,11.0,10.5,0.5,11.0,10.5,0.5,15.0,10.5,0.0,15.0,10.5,0.0,11.0,21.0,0.5,11.0,21.0,0.5,15.0,21.0,0.0,15.0,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Studio west window 2","l":"Glazing","v":[0.22,11.0,3.0,0.28,11.0,3.0,0.28,15.0,3.0,0.22,15.0,3.0,0.22,11.0,10.5,0.28,11.0,10.5,0.28,15.0,10.5,0.22,15.0,10.5],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"West wall pier end","l":"Walls-Exterior","v":[0.0,15.0,0.0,0.5,15.0,0.0,0.5,23.5,0.0,0.0,23.5,0.0,0.0,15.0,21.0,0.5,15.0,21.0,0.5,23.5,21.0,0.0,23.5,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"East wall pier 0","l":"Walls-Exterior","v":[35.5,0.5,0.0,36.0,0.5,0.0,36.0,9.0,0.0,35.5,9.0,0.0,35.5,0.5,21.0,36.0,0.5,21.0,36.0,9.0,21.0,35.5,9.0,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"East wall below Stair hall window","l":"Walls-Exterior","v":[35.5,9.0,0.0,36.0,9.0,0.0,36.0,13.0,0.0,35.5,13.0,0.0,35.5,9.0,5.0,36.0,9.0,5.0,36.0,13.0,5.0,35.5,13.0,5.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"East wall above Stair hall window","l":"Walls-Exterior","v":[35.5,9.0,9.0,36.0,9.0,9.0,36.0,13.0,9.0,35.5,13.0,9.0,35.5,9.0,21.0,36.0,9.0,21.0,36.0,13.0,21.0,35.5,13.0,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Stair hall window","l":"Glazing","v":[35.72,9.0,5.0,35.78,9.0,5.0,35.78,13.0,5.0,35.72,13.0,5.0,35.72,9.0,9.0,35.78,9.0,9.0,35.78,13.0,9.0,35.72,13.0,9.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"East wall below Stair hall upper window","l":"Walls-Exterior","v":[35.5,9.0,0.0,36.0,9.0,0.0,36.0,13.0,0.0,35.5,13.0,0.0,35.5,9.0,14.0,36.0,9.0,14.0,36.0,13.0,14.0,35.5,13.0,14.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"East wall above Stair hall upper window","l":"Walls-Exterior","v":[35.5,9.0,19.0,36.0,9.0,19.0,36.0,13.0,19.0,35.5,13.0,19.0,35.5,9.0,21.0,36.0,9.0,21.0,36.0,13.0,21.0,35.5,13.0,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Stair hall upper window","l":"Glazing","v":[35.72,9.0,14.0,35.78,9.0,14.0,35.78,13.0,14.0,35.72,13.0,14.0,35.72,9.0,19.0,35.78,9.0,19.0,35.78,13.0,19.0,35.72,13.0,19.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"East wall pier end","l":"Walls-Exterior","v":[35.5,13.0,0.0,36.0,13.0,0.0,36.0,23.5,0.0,35.5,23.5,0.0,35.5,13.0,21.0,36.0,13.0,21.0,36.0,23.5,21.0,35.5,23.5,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"West gable","l":"Walls-Exterior","v":[0.0,0.0,21.0,0.0,24.0,21.0,0.0,12.0,27.0,0.5,0.0,21.0,0.5,24.0,21.0,0.5,12.0,27.0],"f":[0,2,1,3,4,5,0,1,4,0,4,3,1,2,5,1,5,4,2,0,3,2,3,5]},{"n":"East gable","l":"Walls-Exterior","v":[35.5,0.0,21.0,35.5,24.0,21.0,35.5,12.0,27.0,36.0,0.0,21.0,36.0,24.0,21.0,36.0,12.0,27.0],"f":[0,2,1,3,4,5,0,1,4,0,4,3,1,2,5,1,5,4,2,0,3,2,3,5]},{"n":"Upper floor","l":"Floors","v":[0.5,0.5,11.0,31.875,0.5,11.0,31.875,23.5,11.0,0.5,23.5,11.0,0.5,0.5,12.0,31.875,0.5,12.0,31.875,23.5,12.0,0.5,23.5,12.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Upper floor at landing","l":"Floors","v":[31.875,19.833,11.0,35.5,19.833,11.0,35.5,23.5,11.0,31.875,23.5,11.0,31.875,19.833,12.0,35.5,19.833,12.0,35.5,23.5,12.0,31.875,23.5,12.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"South roof","l":"Roof","v":[-1.0,-1.5,20.25,-1.0,12.0,27.0,-1.0,12.0,27.8,-1.0,-1.5,21.05,37.0,-1.5,20.25,37.0,12.0,27.0,37.0,12.0,27.8,37.0,-1.5,21.05],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"North roof","l":"Roof","v":[-1.0,25.5,20.25,-1.0,12.0,27.0,-1.0,12.0,27.8,-1.0,25.5,21.05,37.0,25.5,20.25,37.0,12.0,27.0,37.0,12.0,27.8,37.0,25.5,21.05],"f":[0,1,2,4,6,5,0,2,3,4,7,6,4,5,1,4,1,0,5,6,2,5,2,1,6,7,3,6,3,2,7,4,0,7,0,3]},{"n":"Stair hall partition (1-hr) pier 0","l":"Walls-Interior","v":[31.5,0.5,0.0,31.875,0.5,0.0,31.875,1.0,0.0,31.5,1.0,0.0,31.5,0.5,11.0,31.875,0.5,11.0,31.875,1.0,11.0,31.5,1.0,11.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Stair hall partition (1-hr) above Studio door from stair hall","l":"Walls-Interior","v":[31.5,1.0,7.0,31.875,1.0,7.0,31.875,3.75,7.0,31.5,3.75,7.0,31.5,1.0,11.0,31.875,1.0,11.0,31.875,3.75,11.0,31.5,3.75,11.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Studio door from stair hall","l":"Doors","v":[31.613,1.0,0.0,31.762,1.0,0.0,31.762,3.75,0.0,31.613,3.75,0.0,31.613,1.0,7.0,31.762,1.0,7.0,31.762,3.75,7.0,31.613,3.75,7.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Stair hall partition (1-hr) pier end","l":"Walls-Interior","v":[31.5,3.75,0.0,31.875,3.75,0.0,31.875,23.5,0.0,31.5,23.5,0.0,31.5,3.75,11.0,31.875,3.75,11.0,31.875,23.5,11.0,31.5,23.5,11.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"WC west wall pier end","l":"Walls-Interior","v":[14.5,0.5,0.0,14.875,0.5,0.0,14.875,7.375,0.0,14.5,7.375,0.0,14.5,0.5,11.0,14.875,0.5,11.0,14.875,7.375,11.0,14.5,7.375,11.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"WC east wall pier end","l":"Walls-Interior","v":[20.0,0.5,0.0,20.375,0.5,0.0,20.375,7.375,0.0,20.0,7.375,0.0,20.0,0.5,11.0,20.375,0.5,11.0,20.375,7.375,11.0,20.0,7.375,11.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"WC north wall pier 0","l":"Walls-Interior","v":[14.5,7.0,0.0,16.0,7.0,0.0,16.0,7.375,0.0,14.5,7.375,0.0,14.5,7.0,11.0,16.0,7.0,11.0,16.0,7.375,11.0,14.5,7.375,11.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"WC north wall above WC door","l":"Walls-Interior","v":[16.0,7.0,7.0,18.5,7.0,7.0,18.5,7.375,7.0,16.0,7.375,7.0,16.0,7.0,11.0,18.5,7.0,11.0,18.5,7.375,11.0,16.0,7.375,11.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"WC door","l":"Doors","v":[16.0,7.112,0.0,18.5,7.112,0.0,18.5,7.263,0.0,16.0,7.263,0.0,16.0,7.112,7.0,18.5,7.112,7.0,18.5,7.263,7.0,16.0,7.263,7.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"WC north wall pier end","l":"Walls-Interior","v":[18.5,7.0,0.0,20.375,7.0,0.0,20.375,7.375,0.0,18.5,7.375,0.0,18.5,7.0,11.0,20.375,7.0,11.0,20.375,7.375,11.0,18.5,7.375,11.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Wet room south wall pier 0","l":"Walls-Interior","v":[14.5,16.0,0.0,15.5,16.0,0.0,15.5,16.375,0.0,14.5,16.375,0.0,14.5,16.0,11.0,15.5,16.0,11.0,15.5,16.375,11.0,14.5,16.375,11.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Wet room south wall above Wet room door (3')","l":"Walls-Interior","v":[15.5,16.0,7.0,18.5,16.0,7.0,18.5,16.375,7.0,15.5,16.375,7.0,15.5,16.0,11.0,18.5,16.0,11.0,18.5,16.375,11.0,15.5,16.375,11.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Wet room door (3')","l":"Doors","v":[15.5,16.113,0.0,18.5,16.113,0.0,18.5,16.262,0.0,15.5,16.262,0.0,15.5,16.113,7.0,18.5,16.113,7.0,18.5,16.262,7.0,15.5,16.262,7.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Wet room south wall pier end","l":"Walls-Interior","v":[18.5,16.0,0.0,24.375,16.0,0.0,24.375,16.375,0.0,18.5,16.375,0.0,18.5,16.0,11.0,24.375,16.0,11.0,24.375,16.375,11.0,18.5,16.375,11.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Wet room west wall pier end","l":"Walls-Interior","v":[14.5,16.375,0.0,14.875,16.375,0.0,14.875,23.5,0.0,14.5,23.5,0.0,14.5,16.375,11.0,14.875,16.375,11.0,14.875,23.5,11.0,14.5,23.5,11.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Wet room east wall pier end","l":"Walls-Interior","v":[24.0,16.375,0.0,24.375,16.375,0.0,24.375,23.5,0.0,24.0,23.5,0.0,24.0,16.375,11.0,24.375,16.375,11.0,24.375,23.5,11.0,24.0,23.5,11.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Stair enclosure wall (1-hr) pier 0","l":"Walls-Interior","v":[31.5,0.5,12.0,31.875,0.5,12.0,31.875,20.25,12.0,31.5,20.25,12.0,31.5,0.5,21.0,31.875,0.5,21.0,31.875,20.25,21.0,31.5,20.25,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Stair enclosure wall (1-hr) above ADU front door","l":"Walls-Interior","v":[31.5,20.25,19.0,31.875,20.25,19.0,31.875,23.0,19.0,31.5,23.0,19.0,31.5,20.25,21.0,31.875,20.25,21.0,31.875,23.0,21.0,31.5,23.0,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"ADU front door","l":"Doors","v":[31.613,20.25,12.0,31.762,20.25,12.0,31.762,23.0,12.0,31.613,23.0,12.0,31.613,20.25,19.0,31.762,20.25,19.0,31.762,23.0,19.0,31.613,23.0,19.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Stair enclosure wall (1-hr) pier end","l":"Walls-Interior","v":[31.5,23.0,12.0,31.875,23.0,12.0,31.875,23.5,12.0,31.5,23.5,12.0,31.5,23.0,21.0,31.875,23.0,21.0,31.875,23.5,21.0,31.5,23.5,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Bedroom west wall pier end","l":"Walls-Interior","v":[21.0,0.5,12.0,21.375,0.5,12.0,21.375,11.875,12.0,21.0,11.875,12.0,21.0,0.5,21.0,21.375,0.5,21.0,21.375,11.875,21.0,21.0,11.875,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Bedroom north wall pier 0","l":"Walls-Interior","v":[21.0,11.5,12.0,22.0,11.5,12.0,22.0,11.875,12.0,21.0,11.875,12.0,21.0,11.5,21.0,22.0,11.5,21.0,22.0,11.875,21.0,21.0,11.875,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Bedroom north wall above Bedroom door","l":"Walls-Interior","v":[22.0,11.5,19.0,24.67,11.5,19.0,24.67,11.875,19.0,22.0,11.875,19.0,22.0,11.5,21.0,24.67,11.5,21.0,24.67,11.875,21.0,22.0,11.875,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Bedroom door","l":"Doors","v":[22.0,11.613,12.0,24.67,11.613,12.0,24.67,11.762,12.0,22.0,11.762,12.0,22.0,11.613,19.0,24.67,11.613,19.0,24.67,11.762,19.0,22.0,11.762,19.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Bedroom north wall pier end","l":"Walls-Interior","v":[24.67,11.5,12.0,31.5,11.5,12.0,31.5,11.875,12.0,24.67,11.875,12.0,24.67,11.5,21.0,31.5,11.5,21.0,31.5,11.875,21.0,24.67,11.875,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Bath west wall pier end","l":"Walls-Interior","v":[14.5,0.5,12.0,14.875,0.5,12.0,14.875,8.375,12.0,14.5,8.375,12.0,14.5,0.5,21.0,14.875,0.5,21.0,14.875,8.375,21.0,14.5,8.375,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Bath north wall pier 0","l":"Walls-Interior","v":[14.5,8.0,12.0,17.5,8.0,12.0,17.5,8.375,12.0,14.5,8.375,12.0,14.5,8.0,21.0,17.5,8.0,21.0,17.5,8.375,21.0,14.5,8.375,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Bath north wall above Bath door","l":"Walls-Interior","v":[17.5,8.0,19.0,20.0,8.0,19.0,20.0,8.375,19.0,17.5,8.375,19.0,17.5,8.0,21.0,20.0,8.0,21.0,20.0,8.375,21.0,17.5,8.375,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Bath door","l":"Doors","v":[17.5,8.113,12.0,20.0,8.113,12.0,20.0,8.262,12.0,17.5,8.262,12.0,17.5,8.113,19.0,20.0,8.113,19.0,20.0,8.262,19.0,17.5,8.262,19.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Bath north wall pier end","l":"Walls-Interior","v":[20.0,8.0,12.0,21.0,8.0,12.0,21.0,8.375,12.0,20.0,8.375,12.0,20.0,8.0,21.0,21.0,8.0,21.0,21.0,8.375,21.0,20.0,8.375,21.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Tread 1","l":"Stair","v":[31.875,4.0,0.45,35.5,4.0,0.45,35.5,4.913,0.45,31.875,4.913,0.45,31.875,4.0,0.6,35.5,4.0,0.6,35.5,4.913,0.6,31.875,4.913,0.6],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Tread 2","l":"Stair","v":[31.875,4.833,1.05,35.5,4.833,1.05,35.5,5.747,1.05,31.875,5.747,1.05,31.875,4.833,1.2,35.5,4.833,1.2,35.5,5.747,1.2,31.875,5.747,1.2],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Tread 3","l":"Stair","v":[31.875,5.667,1.65,35.5,5.667,1.65,35.5,6.58,1.65,31.875,6.58,1.65,31.875,5.667,1.8,35.5,5.667,1.8,35.5,6.58,1.8,31.875,6.58,1.8],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Tread 4","l":"Stair","v":[31.875,6.5,2.25,35.5,6.5,2.25,35.5,7.413,2.25,31.875,7.413,2.25,31.875,6.5,2.4,35.5,6.5,2.4,35.5,7.413,2.4,31.875,7.413,2.4],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Tread 5","l":"Stair","v":[31.875,7.333,2.85,35.5,7.333,2.85,35.5,8.247,2.85,31.875,8.247,2.85,31.875,7.333,3.0,35.5,7.333,3.0,35.5,8.247,3.0,31.875,8.247,3.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Tread 6","l":"Stair","v":[31.875,8.167,3.45,35.5,8.167,3.45,35.5,9.08,3.45,31.875,9.08,3.45,31.875,8.167,3.6,35.5,8.167,3.6,35.5,9.08,3.6,31.875,9.08,3.6],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Tread 7","l":"Stair","v":[31.875,9.0,4.05,35.5,9.0,4.05,35.5,9.913,4.05,31.875,9.913,4.05,31.875,9.0,4.2,35.5,9.0,4.2,35.5,9.913,4.2,31.875,9.913,4.2],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Tread 8","l":"Stair","v":[31.875,9.833,4.65,35.5,9.833,4.65,35.5,10.747,4.65,31.875,10.747,4.65,31.875,9.833,4.8,35.5,9.833,4.8,35.5,10.747,4.8,31.875,10.747,4.8],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Tread 9","l":"Stair","v":[31.875,10.667,5.25,35.5,10.667,5.25,35.5,11.58,5.25,31.875,11.58,5.25,31.875,10.667,5.4,35.5,10.667,5.4,35.5,11.58,5.4,31.875,11.58,5.4],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Tread 10","l":"Stair","v":[31.875,11.5,5.85,35.5,11.5,5.85,35.5,12.413,5.85,31.875,12.413,5.85,31.875,11.5,6.0,35.5,11.5,6.0,35.5,12.413,6.0,31.875,12.413,6.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Tread 11","l":"Stair","v":[31.875,12.333,6.45,35.5,12.333,6.45,35.5,13.247,6.45,31.875,13.247,6.45,31.875,12.333,6.6,35.5,12.333,6.6,35.5,13.247,6.6,31.875,13.247,6.6],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Tread 12","l":"Stair","v":[31.875,13.167,7.05,35.5,13.167,7.05,35.5,14.08,7.05,31.875,14.08,7.05,31.875,13.167,7.2,35.5,13.167,7.2,35.5,14.08,7.2,31.875,14.08,7.2],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Tread 13","l":"Stair","v":[31.875,14.0,7.65,35.5,14.0,7.65,35.5,14.913,7.65,31.875,14.913,7.65,31.875,14.0,7.8,35.5,14.0,7.8,35.5,14.913,7.8,31.875,14.913,7.8],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Tread 14","l":"Stair","v":[31.875,14.833,8.25,35.5,14.833,8.25,35.5,15.747,8.25,31.875,15.747,8.25,31.875,14.833,8.4,35.5,14.833,8.4,35.5,15.747,8.4,31.875,15.747,8.4],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Tread 15","l":"Stair","v":[31.875,15.667,8.85,35.5,15.667,8.85,35.5,16.58,8.85,31.875,16.58,8.85,31.875,15.667,9.0,35.5,15.667,9.0,35.5,16.58,9.0,31.875,16.58,9.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Tread 16","l":"Stair","v":[31.875,16.5,9.45,35.5,16.5,9.45,35.5,17.413,9.45,31.875,17.413,9.45,31.875,16.5,9.6,35.5,16.5,9.6,35.5,17.413,9.6,31.875,17.413,9.6],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Tread 17","l":"Stair","v":[31.875,17.333,10.05,35.5,17.333,10.05,35.5,18.247,10.05,31.875,18.247,10.05,31.875,17.333,10.2,35.5,17.333,10.2,35.5,18.247,10.2,31.875,18.247,10.2],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Tread 18","l":"Stair","v":[31.875,18.167,10.65,35.5,18.167,10.65,35.5,19.08,10.65,31.875,19.08,10.65,31.875,18.167,10.8,35.5,18.167,10.8,35.5,19.08,10.8,31.875,19.08,10.8],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Tread 19","l":"Stair","v":[31.875,19.0,11.25,35.5,19.0,11.25,35.5,19.913,11.25,31.875,19.913,11.25,31.875,19.0,11.4,35.5,19.0,11.4,35.5,19.913,11.4,31.875,19.913,11.4],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Stair stringer","l":"Stair","v":[35.35,4.0,0.0,35.35,19.833,11.4,35.35,19.833,12.0,35.35,4.0,0.6,35.5,4.0,0.0,35.5,19.833,11.4,35.5,19.833,12.0,35.5,4.0,0.6],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Handrail","l":"Stair","v":[31.925,4.0,3.0,32.075,4.0,3.0,32.075,19.833,3.0,31.925,19.833,3.0,31.925,4.0,3.15,32.075,4.0,3.15,32.075,19.833,3.15,31.925,19.833,3.15],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Etching press stand","l":"Studio-Equipment","v":[5.5,11.0,0.0,12.5,11.0,0.0,12.5,13.0,0.0,5.5,13.0,0.0,5.5,11.0,2.8,12.5,11.0,2.8,12.5,13.0,2.8,5.5,13.0,2.8],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Etching press bed (30\"x60\", 7' travel)","l":"Studio-Equipment","v":[5.5,10.75,2.95,12.5,10.75,2.95,12.5,13.25,2.95,5.5,13.25,2.95,5.5,10.75,3.1,12.5,10.75,3.1,12.5,13.25,3.1,5.5,13.25,3.1],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Press side frame S","l":"Studio-Equipment","v":[8.0,10.35,0.0,10.0,10.35,0.0,10.0,10.75,0.0,8.0,10.75,0.0,8.0,10.35,4.6,10.0,10.35,4.6,10.0,10.75,4.6,8.0,10.75,4.6],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Press side frame N","l":"Studio-Equipment","v":[8.0,13.25,0.0,10.0,13.25,0.0,10.0,13.65,0.0,8.0,13.65,0.0,8.0,13.25,4.6,10.0,13.25,4.6,10.0,13.65,4.6,8.0,13.65,4.6],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Press top roller","l":"Studio-Equipment","v":[9.55,10.75,3.75,9.523,10.75,3.92,9.445,10.75,4.073,9.323,10.75,4.195,9.17,10.75,4.273,9.0,10.75,4.3,8.83,10.75,4.273,8.677,10.75,4.195,8.555,10.75,4.073,8.477,10.75,3.92,8.45,10.75,3.75,8.477,10.75,3.58,8.555,10.75,3.427,8.677,10.75,3.305,8.83,10.75,3.227,9.0,10.75,3.2,9.17,10.75,3.227,9.323,10.75,3.305,9.445,10.75,3.427,9.523,10.75,3.58,9.55,13.25,3.75,9.523,13.25,3.92,9.445,13.25,4.073,9.323,13.25,4.195,9.17,13.25,4.273,9.0,13.25,4.3,8.83,13.25,4.273,8.677,13.25,4.195,8.555,13.25,4.073,8.477,13.25,3.92,8.45,13.25,3.75,8.477,13.25,3.58,8.555,13.25,3.427,8.677,13.25,3.305,8.83,13.25,3.227,9.0,13.25,3.2,9.17,13.25,3.227,9.323,13.25,3.305,9.445,13.25,3.427,9.523,13.25,3.58],"f":[0,1,2,20,22,21,0,2,3,20,23,22,0,3,4,20,24,23,0,4,5,20,25,24,0,5,6,20,26,25,0,6,7,20,27,26,0,7,8,20,28,27,0,8,9,20,29,28,0,9,10,20,30,29,0,10,11,20,31,30,0,11,12,20,32,31,0,12,13,20,33,32,0,13,14,20,34,33,0,14,15,20,35,34,0,15,16,20,36,35,0,16,17,20,37,36,0,17,18,20,38,37,0,18,19,20,39,38,20,21,1,20,1,0,21,22,2,21,2,1,22,23,3,22,3,2,23,24,4,23,4,3,24,25,5,24,5,4,25,26,6,25,6,5,26,27,7,26,7,6,27,28,8,27,8,7,28,29,9,28,9,8,29,30,10,29,10,9,30,31,11,30,11,10,31,32,12,31,12,11,32,33,13,32,13,12,33,34,14,33,14,13,34,35,15,34,15,14,35,36,16,35,16,15,36,37,17,36,17,16,37,38,18,37,18,17,38,39,19,38,19,18,39,20,0,39,0,19]},{"n":"Press star wheel","l":"Studio-Equipment","v":[10.6,13.65,3.75,9.8,13.65,5.136,8.2,13.65,5.136,7.4,13.65,3.75,8.2,13.65,2.364,9.8,13.65,2.364,10.6,13.8,3.75,9.8,13.8,5.136,8.2,13.8,5.136,7.4,13.8,3.75,8.2,13.8,2.364,9.8,13.8,2.364],"f":[0,1,2,6,8,7,0,2,3,6,9,8,0,3,4,6,10,9,0,4,5,6,11,10,6,7,1,6,1,0,7,8,2,7,2,1,8,9,3,8,3,2,9,10,4,9,4,3,10,11,5,10,5,4,11,6,0,11,0,5]},{"n":"Inking table (glass slab top)","l":"Studio-Equipment","v":[6.0,20.75,0.0,12.0,20.75,0.0,12.0,23.4,0.0,6.0,23.4,0.0,6.0,20.75,3.0,12.0,20.75,3.0,12.0,23.4,3.0,6.0,23.4,3.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Glass inking slab","l":"Glazing","v":[6.5,21.0,3.0,11.5,21.0,3.0,11.5,23.15,3.0,6.5,23.15,3.0,6.5,21.0,3.08,11.5,21.0,3.08,11.5,23.15,3.08,6.5,23.15,3.08],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Paper prep / blotter table","l":"Studio-Equipment","v":[0.6,1.5,0.0,3.6,1.5,0.0,3.6,7.5,0.0,0.6,7.5,0.0,0.6,1.5,3.0,3.6,1.5,3.0,3.6,7.5,3.0,0.6,7.5,3.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Paper soaking tray","l":"Studio-Equipment","v":[0.6,8.0,0.0,3.6,8.0,0.0,3.6,11.0,0.0,0.6,11.0,0.0,0.6,8.0,2.6,3.6,8.0,2.6,3.6,11.0,2.6,0.6,11.0,2.6],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Deep sink (6' stainless)","l":"Studio-Equipment","v":[15.25,21.25,0.0,21.25,21.25,0.0,21.25,23.4,0.0,15.25,23.4,0.0,15.25,21.25,3.0,21.25,21.25,3.0,21.25,23.4,3.0,15.25,23.4,3.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Fume hood base","l":"Studio-Equipment","v":[21.75,20.75,0.0,23.9,20.75,0.0,23.9,23.4,0.0,21.75,23.4,0.0,21.75,20.75,3.0,23.9,20.75,3.0,23.9,23.4,3.0,21.75,23.4,3.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Fume hood (ducted)","l":"Studio-Equipment","v":[21.75,20.75,3.0,23.9,20.75,3.0,23.9,23.4,3.0,21.75,23.4,3.0,21.75,20.75,7.0,23.9,20.75,7.0,23.9,23.4,7.0,21.75,23.4,7.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Fume hood exhaust duct","l":"Studio-Equipment","v":[22.5,22.25,7.0,23.25,22.25,7.0,23.25,23.0,7.0,22.5,23.0,7.0,22.5,22.25,11.0,23.25,22.25,11.0,23.25,23.0,11.0,22.5,23.0,11.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Drying rack","l":"Studio-Equipment","v":[25.0,20.0,0.0,27.5,20.0,0.0,27.5,23.4,0.0,25.0,23.4,0.0,25.0,20.0,5.0,27.5,20.0,5.0,27.5,23.4,5.0,25.0,23.4,5.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Flat files 1","l":"Studio-Equipment","v":[27.75,8.0,0.0,31.4,8.0,0.0,31.4,12.5,0.0,27.75,12.5,0.0,27.75,8.0,3.5,31.4,8.0,3.5,31.4,12.5,3.5,27.75,12.5,3.5],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Flat files 2","l":"Studio-Equipment","v":[27.75,12.5,0.0,31.4,12.5,0.0,31.4,17.0,0.0,27.75,17.0,0.0,27.75,12.5,3.5,31.4,12.5,3.5,31.4,17.0,3.5,27.75,17.0,3.5],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Clean work table","l":"Studio-Equipment","v":[21.0,8.5,0.0,27.0,8.5,0.0,27.0,12.5,0.0,21.0,12.5,0.0,21.0,8.5,3.0,27.0,8.5,3.0,27.0,12.5,3.0,21.0,12.5,3.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"WC toilet","l":"Studio-Equipment","v":[18.0,0.6,0.0,19.5,0.6,0.0,19.5,2.9,0.0,18.0,2.9,0.0,18.0,0.6,1.4,19.5,0.6,1.4,19.5,2.9,1.4,18.0,2.9,1.4],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"WC hand sink","l":"Studio-Equipment","v":[15.0,3.5,2.4,16.5,3.5,2.4,16.5,5.0,2.4,15.0,5.0,2.4,15.0,3.5,2.9,16.5,3.5,2.9,16.5,5.0,2.9,15.0,5.0,2.9],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Press clearance","l":"Studio-Zones","v":[2.5,8.5,0.0,14.5,8.5,0.0,14.5,15.5,0.0,2.5,15.5,0.0,2.5,8.5,0.02,14.5,8.5,0.02,14.5,15.5,0.02,2.5,15.5,0.02],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Clean zone","l":"Studio-Zones","v":[21.0,7.5,0.0,31.0,7.5,0.0,31.0,17.5,0.0,21.0,17.5,0.0,21.0,7.5,0.02,31.0,7.5,0.02,31.0,17.5,0.02,21.0,17.5,0.02],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Dirty zone","l":"Studio-Zones","v":[5.0,18.0,0.0,14.25,18.0,0.0,14.25,23.5,0.0,5.0,23.5,0.0,5.0,18.0,0.02,14.25,18.0,0.02,14.25,23.5,0.02,5.0,23.5,0.02],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Kitchen counter","l":"ADU-Furniture","v":[17.0,21.4,12.0,27.75,21.4,12.0,27.75,23.5,12.0,17.0,23.5,12.0,17.0,21.4,15.0,27.75,21.4,15.0,27.75,23.5,15.0,17.0,23.5,15.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Refrigerator","l":"ADU-Furniture","v":[28.0,21.0,12.0,30.75,21.0,12.0,30.75,23.5,12.0,28.0,23.5,12.0,28.0,21.0,18.5,30.75,21.0,18.5,30.75,23.5,18.5,28.0,23.5,18.5],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Kitchen island","l":"ADU-Furniture","v":[20.0,16.5,12.0,26.0,16.5,12.0,26.0,19.0,12.0,20.0,19.0,12.0,20.0,16.5,15.0,26.0,16.5,15.0,26.0,19.0,15.0,20.0,19.0,15.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Dining table","l":"ADU-Furniture","v":[9.5,16.5,12.0,14.5,16.5,12.0,14.5,19.5,12.0,9.5,19.5,12.0,9.5,16.5,14.5,14.5,16.5,14.5,14.5,19.5,14.5,9.5,19.5,14.5],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Sofa","l":"ADU-Furniture","v":[2.0,1.0,12.0,9.5,1.0,12.0,9.5,4.0,12.0,2.0,4.0,12.0,2.0,1.0,14.75,9.5,1.0,14.75,9.5,4.0,14.75,2.0,4.0,14.75],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Coffee table","l":"ADU-Furniture","v":[4.0,5.5,12.0,8.0,5.5,12.0,8.0,7.5,12.0,4.0,7.5,12.0,4.0,5.5,13.5,8.0,5.5,13.5,8.0,7.5,13.5,4.0,7.5,13.5],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Queen bed","l":"ADU-Furniture","v":[24.75,2.5,12.0,31.4,2.5,12.0,31.4,7.5,12.0,24.75,7.5,12.0,24.75,2.5,14.0,31.4,2.5,14.0,31.4,7.5,14.0,24.75,7.5,14.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Closet","l":"ADU-Furniture","v":[26.5,9.5,12.0,31.5,9.5,12.0,31.5,11.5,12.0,26.5,11.5,12.0,26.5,9.5,20.0,31.5,9.5,20.0,31.5,11.5,20.0,26.5,11.5,20.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Bathtub / shower","l":"ADU-Furniture","v":[14.9,0.5,12.0,19.9,0.5,12.0,19.9,3.0,12.0,14.9,3.0,12.0,14.9,0.5,13.75,19.9,0.5,13.75,19.9,3.0,13.75,14.9,3.0,13.75],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Toilet","l":"ADU-Furniture","v":[19.4,4.2,12.0,20.95,4.2,12.0,20.95,6.5,12.0,19.4,6.5,12.0,19.4,4.2,13.4,20.95,4.2,13.4,20.95,6.5,13.4,19.4,6.5,13.4],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Vanity","l":"ADU-Furniture","v":[14.9,4.0,12.0,16.7,4.0,12.0,16.7,7.5,12.0,14.9,7.5,12.0,14.9,4.0,14.8,16.7,4.0,14.8,16.7,7.5,14.8,14.9,7.5,14.8],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]},{"n":"Stacked washer/dryer","l":"ADU-Furniture","v":[29.0,12.0,12.0,31.5,12.0,12.0,31.5,14.5,12.0,29.0,14.5,12.0,29.0,12.0,18.0,31.5,12.0,18.0,31.5,14.5,18.0,29.0,14.5,18.0],"f":[0,2,1,4,5,6,0,3,2,4,6,7,0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7]}],"rooms":[{"level":"ground","name":"Print Studio","area":599,"x":6.5,"y":4.0,"z":0.0},{"level":"ground","name":"Wet / Etch Room","area":65,"x":19.4375,"y":19.9375,"z":0.0},{"level":"ground","name":"WC","area":33,"x":17.4375,"y":3.75,"z":0.0},{"level":"ground","name":"Entry + Stair","area":83,"x":33.7,"y":13.5,"z":0.0},{"level":"upper","name":"Living / Kitchen","area":542,"x":6.5,"y":11.0,"z":12.0},{"level":"upper","name":"Bedroom","area":111,"x":25.6,"y":8.65,"z":12.0},{"level":"upper","name":"Bath","area":46,"x":17.9375,"y":4.25,"z":12.0},{"level":"upper","name":"Landing","area":13,"x":33.6875,"y":21.666666666666668,"z":12.0}],"summary":{"footprint":"36' x 24'","gross_per_floor":864.0,"studio_gross":756.0,"adu_gross":756.0,"shared_stair_gross":108.0,"studio_clear_height":11.0,"adu_plate_height":9.0,"ridge_height":27.8,"roof_pitch":"6:12"}};
+
+// ---------- tabs ----------
+const tabs = [...document.querySelectorAll('[role="tab"]')];
+function showTab(id) {
+  tabs.forEach(t => {
+    const on = t.id === id;
+    t.setAttribute('aria-selected', on);
+    document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+  });
+  try { localStorage.setItem('psadu-tab', id); } catch (e) {}
+  if (id === 't-model') resize();
+}
+tabs.forEach(t => t.addEventListener('click', () => showTab(t.id)));
+
+// ---------- scene ----------
+const stage = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.localClippingEnabled = true;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+stage.prepend(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(38, 1, 0.5, 2000);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.maxPolarAngle = Math.PI * 0.495;
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8f86, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.75);
+sun.position.set(-40, 70, 35);           // from the southwest, high
+sun.castShadow = true;
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.04;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -45, right: 45, top: 45, bottom: -45, near: 1, far: 200 });
+sun.target.position.set(18, 0, -12);
+scene.add(sun, sun.target);
+
+const cutPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 31);
+const groups = {}, mats = {};
+const edgeMat = new THREE.LineBasicMaterial({ color: 0x2a2f38, transparent: true, opacity: 0.55, clippingPlanes: [cutPlane] });
+const pickables = [];
+const NO_EDGES = new Set(['Site', 'Walls-Exterior', 'Walls-Interior', 'Floors', 'Slab']);
+
+for (const [name, L] of Object.entries(DATA.layers)) {
+  const g = new THREE.Group(); g.name = name; groups[name] = g; scene.add(g);
+  mats[name] = new THREE.MeshStandardMaterial({
+    color: L.color, roughness: 0.88, metalness: 0, side: THREE.DoubleSide,
+    transparent: L.opacity < 1, opacity: L.opacity, depthWrite: L.opacity >= 1,
+    clippingPlanes: [cutPlane], polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,
+  });
+}
+for (const o of DATA.objects) {
+  const pos = new Float32Array(o.v.length);
+  for (let i = 0; i < o.v.length; i += 3) {   // model z-up feet -> three y-up
+    pos[i] = o.v[i]; pos[i + 1] = o.v[i + 2]; pos[i + 2] = -o.v[i + 1];
+  }
+  let geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setIndex(o.f);
+  geo = geo.toNonIndexed();          // flat shading: each face gets its own normals
+  geo.computeVertexNormals();
+  const mesh = new THREE.Mesh(geo, mats[o.l]);
+  mesh.name = o.n; mesh.userData.layer = o.l;
+  const opaque = DATA.layers[o.l].opacity >= 1;
+  mesh.castShadow = opaque && o.l !== 'Site';
+  mesh.receiveShadow = true;
+  groups[o.l].add(mesh);
+  if (o.l !== 'Site') pickables.push(mesh);
+  // outline loose objects only; wall and floor pieces would show their construction seams
+  if (opaque && !NO_EDGES.has(o.l)) {
+    const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo, 25), edgeMat);
+    e.raycast = () => {};
+    groups[o.l].add(e);
+  }
+}
+
+// ---------- theme ----------
+function applyTheme() {
+  const cs = getComputedStyle(document.documentElement);
+  scene.background = new THREE.Color(cs.getPropertyValue('--scene-bg').trim() || '#e9ecef');
+  const dark = scene.background.getHSL({}).l < 0.4;
+  edgeMat.color.set(dark ? 0x0b0d10 : 0x2a2f38);
+}
+applyTheme();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
+new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+// ---------- cameras ----------
+const CAMS = {
+  sw: { pos: [-34, 30, 40], tgt: [18, 9, -12] },
+  ne: { pos: [72, 34, -66], tgt: [18, 9, -12] },
+  top: { pos: [18.01, 85, -12], tgt: [18, 0, -12] },
+  in: { pos: [30.5, 5.8, -15], tgt: [5, 2.5, -13] },
+};
+function setCam(k) {
+  const c = CAMS[k];
+  camera.position.set(...c.pos); controls.target.set(...c.tgt); controls.update();
+  document.querySelectorAll('#cams .btn').forEach(b => b.classList.toggle('on', b.dataset.cam === k));
+  if (k === 'in') setCut(10.5);
+}
+
+// ---------- section cut ----------
+const cutr = document.getElementById('cutr'), cutv = document.getElementById('cutv');
+function setCut(h) {
+  cutPlane.constant = h; cutr.value = h;
+  cutv.textContent = h >= 30.5 ? 'above roof' : `${h.toFixed(2).replace(/\.?0+$/, '')} ft above studio floor`;
+  document.querySelectorAll('#presets .btn[data-cut]:not([data-lbl])').forEach(b =>
+    b.classList.toggle('on', Math.abs(+b.dataset.cut - h) < 0.01));
+  updateLabels();
+}
+cutr.addEventListener('input', () => setCut(+cutr.value));
+
+// ---------- labels ----------
+let showLabels = true;
+const labelsEl = document.getElementById('labels');
+const roomEls = DATA.rooms.map(r => {
+  const d = document.createElement('div');
+  d.innerHTML = `${r.name}<small>${r.area} sf</small>`;
+  labelsEl.appendChild(d);
+  return { r, d, p: new THREE.Vector3(r.x, r.z + 0.5, -r.y) };
+});
+function updateLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight, h0 = cutPlane.constant;
+  for (const { r, d, p } of roomEls) {
+    const vis = showLabels && h0 < 30 && r.z < h0 && h0 < r.z + 11.5;
+    const s = p.clone().project(camera);
+    const on = vis && s.z < 1 && Math.abs(s.x) < 1 && Math.abs(s.y) < 1;
+    d.hidden = !on;
+    if (on) { d.style.left = `${(s.x + 1) / 2 * w}px`; d.style.top = `${(1 - s.y) / 2 * h}px`; }
+  }
+}
+document.querySelectorAll('#presets .btn').forEach(b => b.addEventListener('click', () => {
+  if (b.dataset.lbl) { showLabels = !showLabels; b.classList.toggle('on', showLabels); updateLabels(); return; }
+  setCut(+b.dataset.cut);
+}));
+document.querySelector('#presets [data-lbl]').classList.add('on');
+
+// ---------- layers ----------
+const layersEl = document.getElementById('layers');
+for (const [name, L] of Object.entries(DATA.layers)) {
+  const id = 'ly-' + name.replace(/\W+/g, '-').toLowerCase();
+  const lab = document.createElement('label');
+  lab.innerHTML = `<input type="checkbox" id="${id}" checked><span class="sw" style="background:${L.color}"></span>${name.replace('-', ' ')}`;
+  lab.querySelector('input').addEventListener('change', e => { groups[name].visible = e.target.checked; });
+  layersEl.appendChild(lab);
+}
+
+// ---------- picking ----------
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), pickEl = document.getElementById('pick');
+let down = null;
+renderer.domElement.addEventListener('pointerdown', e => { down = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener('pointerup', e => {
+  if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 4) return;
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const hit = ray.intersectObjects(pickables.filter(m => groups[m.userData.layer].visible), false)
+    .find(h => h.point.y <= cutPlane.constant);
+  pickEl.textContent = hit ? `${hit.object.name}  ·  ${hit.object.userData.layer}` : 'Nothing there. Click a wall, fixture or piece of equipment.';
+});
+
+// ---------- loop ----------
+function resize() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  if (!w || !h) return;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(stage);
+document.querySelectorAll('#cams .btn').forEach(b => b.addEventListener('click', () => setCam(b.dataset.cam)));
+setCam('sw'); setCut(31);
+(function loop() { requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); updateLabels(); })();
+
+try { const t = localStorage.getItem('psadu-tab'); if (t && document.getElementById(t)) showTab(t); } catch (e) {}
+</script>
