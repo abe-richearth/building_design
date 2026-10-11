@@ -51,6 +51,7 @@ LAYERS = {
     "Studio-Equipment":  ((0.20, 0.32, 0.45), 1.0),
     "Studio-Zones":      ((0.95, 0.55, 0.20), 0.30),
     "ADU-Furniture":     ((0.62, 0.70, 0.62), 1.0),
+    "ADU-Piano":         ((0.07, 0.07, 0.08), 1.0),
 }
 
 # interior faces of the exterior walls, and the studio side of the stair partition
@@ -76,7 +77,7 @@ ROOMS = [
 
 LABEL_AT = {  # where to place a room label if not the rect centre
     "Print Studio": (6.5, 4.0),
-    "Living / Kitchen": (6.5, 11.0),
+    "Living / Kitchen": (12.0, 9.5),
     "Bedroom": (25.6, 8.65),
     "Entry + Stair": (33.7, 13.5),
 }
@@ -243,7 +244,63 @@ def build():
     E.append(box("Vanity", f, 14.9, 4.0, u, 16.7, 7.5, u + 2.8, level=up))
     E.append(box("Stacked washer/dryer", f, STAIR_X0 - iw - 2.5, 12.0, u,
                   STAIR_X0 - iw, 14.5, u + 6, level=up))
+
+    # Steinway Model S baby grand: keyboard to the west, pianist facing east,
+    # lid opening to the south toward the sofa; tail 3' clear of the dining table.
+    E += steinway_s(kx=4.0, yn=15.2, z=u)
     return E
+
+
+# Steinway Model S outline, in feet. u runs across the keyboard from the bass
+# end (0) to the treble end; v runs from the front of the keys toward the tail.
+# 4'-10" (148 cm) wide x 5'-1" (155 cm) long.
+STEINWAY_S_WIDTH = 148 / 30.48
+STEINWAY_S_LENGTH = 155 / 30.48
+_KEYS = 0.55   # how far the keys stand proud of the case front
+_S_OUTLINE = [
+    (0.00, _KEYS), (0.00, 4.55),                      # straight bass-side spine
+    (0.12, 4.82), (0.40, 5.00), (0.80, STEINWAY_S_LENGTH), (1.25, 5.05),  # rounded tail
+    (1.62, 4.92), (1.95, 4.68), (2.30, 4.30),         # bentside, concave S-curve
+    (2.75, 3.80), (3.30, 3.30), (3.90, 2.80),
+    (4.40, 2.25), (4.72, 1.75), (STEINWAY_S_WIDTH, 1.30),
+    (STEINWAY_S_WIDTH, _KEYS),                        # straight treble side
+]
+
+
+def steinway_s(kx, yn, z, layer="ADU-Piano"):
+    """A Steinway Model S grand with the front of its keys at x = kx, its bass
+    side at y = yn, standing on the floor at height z. The pianist faces +x,
+    so the treble side (where the lid opens) is to the south."""
+    def w(u, v, h):
+        return (kx + v, yn - u, z + h)
+
+    def outline(h):
+        return [w(u, v, h) for u, v in _S_OUTLINE]
+
+    W_ = STEINWAY_S_WIDTH
+    out = [
+        prism("Steinway Model S case (ebony)", layer, outline(1.95), (0, 0, 1.15)),
+        prism("Steinway Model S lid (closed)", layer, outline(3.10), (0, 0, 0.07), plan=False),
+        box("Steinway Model S keyboard (88 keys)", "ADU-Furniture",
+            kx, yn - W_ + 0.42, z + 2.15, kx + _KEYS, yn - 0.42, z + 2.36),
+        box("Steinway Model S key slip", layer, kx, yn - W_, z + 1.95, kx + _KEYS, yn, z + 2.15),
+        box("Steinway Model S cheek (bass)", layer, kx, yn - 0.42, z + 2.15, kx + _KEYS, yn,
+            z + 2.55),
+        box("Steinway Model S cheek (treble)", layer, kx, yn - W_, z + 2.15, kx + _KEYS,
+            yn - W_ + 0.42, z + 2.55),
+        box("Steinway Model S music desk", layer, kx + 0.95, yn - 3.6, z + 3.17, kx + 1.05,
+            yn - 1.25, z + 4.05),
+        box("Steinway Model S pedal lyre", layer, kx + 0.75, yn - 2.75, z, kx + 0.95,
+            yn - 2.1, z + 1.95),
+    ]
+    for nm, (u, v) in (("bass leg", (0.35, 0.85)), ("treble leg", (W_ - 0.35, 0.85)),
+                       ("tail leg", (0.75, 4.6))):
+        cx, cy, _ = w(u, v, 0)
+        out.append(box(f"Steinway Model S {nm}", layer, cx - 0.17, cy - 0.17, z,
+                       cx + 0.17, cy + 0.17, z + 1.95))
+    out.append(box("Piano bench (30\" x 14\")", layer, kx - 1.75, yn - W_ / 2 - 1.25, z,
+                   kx - 0.6, yn - W_ / 2 + 1.25, z + 1.6))
+    return out
 
 
 LEVELS = {

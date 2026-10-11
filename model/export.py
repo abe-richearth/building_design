@@ -163,6 +163,8 @@ EQUIP_LABELS = {
     "Kitchen island": "Island",
     "Dining table": "Dining",
     "Sofa": "Sofa",
+    "Steinway Model S case (ebony)": "Steinway S",
+    "Piano bench (30\" x 14\")": "Bench",
     "Queen bed": "Queen bed",
     "Closet": "Closet",
     "Bathtub / shower": "Tub / shower",
@@ -230,8 +232,15 @@ def plan_svg(elements, rooms, levels, label_at, level, length, depth, inline=Fal
                    "Walls-Interior": "cut-int"}.get(e.layer, "cut")
             cut.append(rect(lo, hi, cls))
             continue
-        if e.layer in ("Studio-Equipment", "ADU-Furniture") and lo[2] >= f - 0.1 and lo[2] < c:
-            below.append(rect(lo, hi, "equip", e.name))
+        if e.layer in ("Studio-Equipment", "ADU-Furniture", "ADU-Piano") and lo[2] >= f - 0.1 and lo[2] < c:
+            if e.meta.get("plan") is False:
+                continue
+            if e.kind == "prism" and abs(e.vector[0]) + abs(e.vector[1]) < 1e-9:
+                # vertical extrusion: draw its true outline (e.g. the piano's curved case)
+                pts = " ".join(f"{X(x):.3f},{Y(y):.3f}" for x, y, _ in e.polygon)
+                below.append(f'<polygon class="equip" points="{pts}"><title>{e.name}</title></polygon>')
+            else:
+                below.append(rect(lo, hi, "equip", e.name))
             if e.name in EQUIP_LABELS:
                 labels.append(f'<text class="elabel" x="{X((lo[0] + hi[0]) / 2):.2f}" '
                               f'y="{Y((lo[1] + hi[1]) / 2) + .18:.2f}">{EQUIP_LABELS[e.name]}</text>')

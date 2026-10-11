@@ -33,12 +33,11 @@ class Element:
         top = base + np.array(self.vector, dtype=float)
         n = len(base)
         verts = np.vstack([base, top])
+        normal = _newell(base)
         # orient so faces point outward
-        normal = np.cross(base[1] - base[0], base[2] - base[0])
         flip = np.dot(normal, self.vector) > 0
         faces = []
-        for i in range(1, n - 1):
-            a, b, c = 0, i, i + 1
+        for a, b, c in _triangulate(base, normal):   # works for concave outlines too
             faces.append((a, c, b) if flip else (a, b, c))
             faces.append((n + a, n + b, n + c) if flip else (n + a, n + c, n + b))
         for i in range(n):
@@ -53,6 +52,49 @@ class Element:
     def bbox(self):
         v, _ = self.mesh()
         return v.min(axis=0), v.max(axis=0)
+
+
+def _newell(pts):
+    """Polygon normal (Newell's method; robust for concave polygons)."""
+    nx = ny = nz = 0.0
+    for i in range(len(pts)):
+        (x0, y0, z0), (x1, y1, z1) = pts[i], pts[(i + 1) % len(pts)]
+        nx += (y0 - y1) * (z0 + z1)
+        ny += (z0 - z1) * (x0 + x1)
+        nz += (x0 - x1) * (y0 + y1)
+    return np.array([nx, ny, nz])
+
+
+def _triangulate(pts, normal):
+    """Ear-clipping triangulation of a simple planar polygon. Triangles keep
+    the polygon's winding."""
+    drop = int(np.argmax(np.abs(normal)))
+    keep = [i for i in range(3) if i != drop]
+    p2 = pts[:, keep]
+    area = sum(p2[i - 1][0] * p2[i][1] - p2[i][0] * p2[i - 1][1] for i in range(len(p2)))
+    if area < 0:                  # make the 2D projection counter-clockwise
+        p2 = p2[:, ::-1]
+
+    def cross(o, a, b):
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+
+    idx = list(range(len(pts)))
+    tris = []
+    while len(idx) > 3:
+        for k in range(len(idx)):
+            i, j, m = idx[k - 1], idx[k], idx[(k + 1) % len(idx)]
+            if cross(p2[i], p2[j], p2[m]) <= 1e-12:
+                continue  # reflex corner
+            if any(cross(p2[i], p2[j], p2[q]) >= 0 and cross(p2[j], p2[m], p2[q]) >= 0
+                   and cross(p2[m], p2[i], p2[q]) >= 0 for q in idx if q not in (i, j, m)):
+                continue  # another vertex inside this ear
+            tris.append((i, j, m))
+            idx.pop(k)
+            break
+        else:
+            raise ValueError("polygon could not be triangulated (self-intersecting?)")
+    tris.append(tuple(idx))
+    return tris
 
 
 def box(name, layer, x0, y0, z0, x1, y1, z1, **meta):
